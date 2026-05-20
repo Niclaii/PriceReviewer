@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Compara precios de este producto en múltiples tiendas. Encuentra el mejor precio, la tienda más confiable y el historial de precios.">
+  <title>Detalle de Producto — PriceReviewer</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7756073684592673" crossorigin="anonymous"></script>
+  <style>
+    /* ===== PRODUCT PAGE LAYOUT ===== */
+    .product-page { padding-top: 80px; }
+
+    .product-top {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s8);
+      padding: var(--s6) 0 var(--s8);
+      align-items: start;
+    }
+
+    /* ===== PRODUCT IMAGE ===== */
+    .product-image-main {
+      aspect-ratio: 1;
+      max-height: 480px;
+      border-radius: var(--r-2xl);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px solid var(--border-glass);
+      position: relative;
+    }
+    .product-image-main::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, transparent 40%, rgba(7,7,13,0.3) 100%);
+      pointer-events: none;
+    }
+
+    /* ===== PRODUCT INFO ===== */
+    .product-info {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s4);
+    }
+    .product-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s2);
+    }
+    .product-name {
+      font-size: var(--text-3xl);
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .product-desc {
+      font-size: var(--text-base);
+      color: var(--text-secondary);
+      line-height: 1.8;
+    }
+
+    /* ===== BEST PRICE BOX ===== */
+    .best-price-box {
+      padding: var(--s6);
+      background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02));
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: var(--r-xl);
+    }
+    .best-price-label {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--success);
+      margin-bottom: var(--s2);
+    }
+    .best-price-value {
+      font-family: var(--font-heading);
+      font-size: var(--text-4xl);
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: var(--s1);
+    }
+    .best-price-original {
+      font-size: var(--text-base);
+      color: var(--text-muted);
+      text-decoration: line-through;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s2);
+      margin-bottom: var(--s3);
+    }
+    .best-price-original .badge { text-decoration: none; }
+    .best-price-store {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      margin-bottom: var(--s2);
+      display: flex;
+      align-items: center;
+      gap: var(--s2);
+    }
+    .best-price-store .rating-stars { display: inline-flex; }
+    .best-price-shipping {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      margin-bottom: var(--s2);
+    }
+
+    /* ===== RELIABLE BOX ===== */
+    .reliable-box {
+      padding: var(--s5);
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--r-xl);
+    }
+    .reliable-label {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--info);
+      margin-bottom: var(--s2);
+    }
+    .reliable-price {
+      font-family: var(--font-heading);
+      font-size: var(--text-2xl);
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: var(--s2);
+    }
+    .reliable-store {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: var(--s2);
+      margin-bottom: var(--s2);
+    }
+    .reliable-store .rating-stars { display: inline-flex; }
+    .reliable-rating {
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+    }
+
+    /* ===== COMPARISON SECTION ===== */
+    .comparison-section {
+      padding: var(--s8) 0;
+    }
+    .comparison-section h2 {
+      font-size: var(--text-2xl);
+      margin-bottom: var(--s6);
+    }
+    .comparison-card {
+      padding: var(--s2);
+      overflow-x: auto;
+    }
+
+    /* ===== CHART SECTION ===== */
+    .chart-section {
+      padding: var(--s8) 0;
+    }
+    .chart-section h2 {
+      font-size: var(--text-2xl);
+      margin-bottom: var(--s6);
+    }
+
+    /* ===== PRICE ALERT ===== */
+    .alert-section {
+      padding: var(--s8) 0;
+    }
+    .alert-card {
+      padding: var(--s8);
+      max-width: 600px;
+    }
+    .alert-card h3 {
+      font-size: var(--text-xl);
+      margin-bottom: var(--s2);
+    }
+    .alert-card p {
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+      margin-bottom: var(--s6);
+    }
+    .alert-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s4);
+    }
+    .alert-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s4);
+    }
+    .alert-success {
+      display: none;
+      padding: var(--s3) var(--s4);
+      background: var(--success-soft);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: var(--r-md);
+      font-size: var(--text-sm);
+      color: var(--success);
+      margin-top: var(--s3);
+    }
+
+    /* ===== RELATED PRODUCTS ===== */
+    .related-section {
+      padding: var(--s8) 0;
+    }
+    .related-section h2 {
+      font-size: var(--text-2xl);
+      margin-bottom: var(--s6);
+    }
+    .related-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--s5);
+    }
+
+    /* ===== PRODUCT SIDEBAR (ad) ===== */
+    .product-content-layout {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: var(--s8);
+      align-items: start;
+    }
+    .product-sidebar-ads {
+      position: sticky;
+      top: 90px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--s4);
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1024px) {
+      .product-content-layout {
+        grid-template-columns: 1fr;
+      }
+      .product-sidebar-ads {
+        position: static;
+        flex-direction: row;
+      }
+      .product-sidebar-ads .ad-sidebar {
+        height: 120px;
+      }
+      .related-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 768px) {
+      .product-top {
+        grid-template-columns: 1fr;
+        gap: var(--s5);
+      }
+      .product-image-main {
+        max-height: 320px;
+      }
+      .product-name {
+        font-size: var(--text-2xl);
+      }
+      .best-price-value {
+        font-size: var(--text-3xl);
+      }
+      .alert-form-row {
+        grid-template-columns: 1fr;
+      }
+      .related-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .product-sidebar-ads {
+        flex-direction: column;
+      }
+    }
+    @media (max-width: 480px) {
+      .related-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body data-page="product">
+
+  <!-- === NAVBAR === -->
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <a href="index.html" class="navbar-brand">
+        <div class="brand-icon">💲</div>
+        PriceReviewer
+      </a>
+      <div class="navbar-search">
+        <div class="search-bar">
+          <div class="search-bar-inner">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" placeholder="Buscar productos, marcas, categorías..." id="nav-search-input" autocomplete="off">
+            <button class="search-btn"><span>Buscar</span></button>
+          </div>
+          <div class="search-suggestions" id="nav-search-suggestions"></div>
+        </div>
+      </div>
+      <div class="navbar-links">
+        <a href="index.html">Inicio</a>
+        <a href="results.html">Explorar</a>
+      </div>
+      <button class="mobile-menu-btn" aria-label="Menú">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- === MOBILE MENU === -->
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="index.html">Inicio</a>
+    <a href="results.html">Explorar</a>
+  </div>
+
+  <main class="product-page">
+    <div class="container">
+      <!-- Breadcrumbs -->
+      <div class="breadcrumbs" id="breadcrumbs">
+        <a href="index.html">Inicio</a>
+        <span class="separator">›</span>
+        <span class="current">Cargando...</span>
+      </div>
+
+      <!-- Ad Banner Top -->
+      <div class="ad-space ad-banner-top" data-ad-size="728x90">
+        <span class="ad-label">Anuncio</span>
+      </div>
+
+      <!-- Product Top: Image + Info -->
+      <div class="product-top">
+        <div class="product-image-main" id="product-image">
+          <!-- Rendered by JS -->
+        </div>
+        <div class="product-info">
+          <div class="product-badges" id="product-category">
+            <!-- Rendered by JS -->
+          </div>
+          <h1 class="product-name" id="product-name">Cargando...</h1>
+          <p class="product-desc" id="product-description">Cargando descripción...</p>
+
+          <!-- Best Price Box -->
+          <div class="best-price-box" id="best-price-box">
+            <!-- Rendered by JS -->
+          </div>
+
+          <!-- Most Reliable Box -->
+          <div class="reliable-box" id="reliable-box">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Content + Sidebar Ads -->
+      <div class="product-content-layout">
+        <div>
+          <!-- Comparison Table -->
+          <section class="comparison-section">
+            <h2>📊 Comparar en <span class="text-gradient">todas las tiendas</span></h2>
+            <div class="glass-card comparison-card" id="comparison-table">
+              <!-- Rendered by JS -->
+            </div>
+          </section>
+
+          <!-- Price History Chart -->
+          <section class="chart-section">
+            <h2>📈 Historial de <span class="text-gradient">Precios</span></h2>
+            <div class="chart-container">
+              <canvas id="price-chart"></canvas>
+            </div>
+          </section>
+
+          <!-- Price Alert -->
+          <section class="alert-section">
+            <div class="alert-card glass-card">
+              <h3>🔔 Alerta de Precio</h3>
+              <p>Te notificaremos cuando el precio baje a tu objetivo. ¡Nunca te pierdas una oferta!</p>
+              <form class="alert-form" id="price-alert-form">
+                <div class="alert-form-row">
+                  <div class="input-group">
+                    <label class="input-label" for="alert-email">Tu correo electrónico</label>
+                    <input type="email" class="input" id="alert-email" placeholder="tu@email.com" required>
+                  </div>
+                  <div class="input-group">
+                    <label class="input-label" for="alert-price">Precio objetivo (USD)</label>
+                    <input type="number" class="input" id="alert-price" placeholder="1000" min="1" required>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Crear Alerta de Precio →</button>
+              </form>
+              <div class="alert-success" id="alert-success"></div>
+            </div>
+          </section>
+
+          <!-- Related Products -->
+          <section class="related-section">
+            <h2>🔗 Productos <span class="text-gradient">Relacionados</span></h2>
+            <div class="related-grid" id="related-products">
+              <!-- Rendered by JS -->
+            </div>
+          </section>
+        </div>
+
+        <!-- Sidebar Ads -->
+        <aside class="product-sidebar-ads">
+          <div class="ad-space ad-sidebar" data-ad-size="300x250">
+            <span class="ad-label">Anuncio</span>
+          </div>
+          <div class="ad-space ad-sidebar" data-ad-size="300x250">
+            <span class="ad-label">Anuncio</span>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Bottom Ad -->
+      <div class="ad-space ad-banner-bottom" data-ad-size="728x90">
+        <span class="ad-label">Anuncio</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- === FOOTER === -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">
+            <div class="brand-icon">💲</div>
+            PriceReviewer
+          </div>
+          <p class="footer-desc">
+            Compara precios de miles de productos en tiempo real. Encuentra el mejor precio y la tienda más confiable.
+          </p>
+          <div class="footer-social">
+            <a href="#" aria-label="Twitter">𝕏</a>
+            <a href="#" aria-label="Facebook">f</a>
+            <a href="#" aria-label="Instagram">📷</a>
+            <a href="#" aria-label="YouTube">▶</a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <h4>Producto</h4>
+          <a href="results.html">Explorar</a>
+          <a href="#">Categorías</a>
+          <a href="#">Ofertas del día</a>
+          <a href="#">Alertas de precio</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compañía</h4>
+          <a href="#">Sobre nosotros</a>
+          <a href="#">Blog</a>
+          <a href="#">Contacto</a>
+          <a href="#">Trabaja con nosotros</a>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <a href="#">Términos de uso</a>
+          <a href="#">Privacidad</a>
+          <a href="#">Cookies</a>
+          <a href="#">Afiliados</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 PriceReviewer. Todos los derechos reservados.</span>
+        <span>Hecho con ❤️ para compradores inteligentes</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/ads.js"></script>
+</body>
+</html>

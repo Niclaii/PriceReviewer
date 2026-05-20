@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Resultados de búsqueda — Compara precios de productos en múltiples tiendas. Filtra por categoría, precio, tienda y disponibilidad.">
+  <title>Buscar Productos — PriceReviewer</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7756073684592673" crossorigin="anonymous"></script>
+  <style>
+    /* ===== RESULTS LAYOUT ===== */
+    .results-page {
+      padding-top: 80px;
+    }
+    .results-header {
+      padding: var(--s6) 0 var(--s2);
+    }
+    .results-header h1 {
+      font-size: var(--text-2xl);
+      margin-bottom: var(--s2);
+    }
+    .results-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: var(--s4);
+      margin-bottom: var(--s6);
+    }
+    .results-count {
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+    }
+    .sort-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--s3);
+    }
+    .sort-bar label {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    .results-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: var(--s6);
+      align-items: start;
+    }
+
+    /* ===== FILTERS SIDEBAR ===== */
+    .filters-sidebar {
+      position: sticky;
+      top: 90px;
+    }
+    .filter-card {
+      padding: var(--s5);
+      margin-bottom: var(--s4);
+    }
+    .filter-card h3 {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--s4);
+      display: flex;
+      align-items: center;
+      gap: var(--s2);
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s2);
+    }
+    .price-range-inputs {
+      display: flex;
+      align-items: center;
+      gap: var(--s2);
+    }
+    .price-range-inputs .input {
+      width: 100%;
+      padding: var(--s2) var(--s3);
+      font-size: var(--text-sm);
+    }
+    .price-range-inputs .separator {
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .filter-apply-btn {
+      margin-top: var(--s3);
+      width: 100%;
+    }
+
+    /* ===== RESULTS GRID ===== */
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: var(--s5);
+    }
+
+    /* ===== PAGINATION ===== */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--s2);
+      padding: var(--s8) 0;
+    }
+    .pagination .btn[disabled] {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    /* ===== AD SIDEBAR ===== */
+    .sidebar-ad-wrapper {
+      margin-top: var(--s4);
+    }
+
+    /* ===== MOBILE FILTERS ===== */
+    .mobile-filter-toggle {
+      display: none;
+      margin-bottom: var(--s4);
+    }
+
+    @media (max-width: 768px) {
+      .results-layout {
+        grid-template-columns: 1fr;
+      }
+      .filters-sidebar {
+        position: static;
+        display: none;
+      }
+      .filters-sidebar.open {
+        display: block;
+      }
+      .mobile-filter-toggle {
+        display: inline-flex;
+      }
+      .results-grid {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      }
+    }
+    @media (max-width: 480px) {
+      .results-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ===== API RESULTS ===== */
+    #api-results-section {
+      margin-bottom: var(--s6);
+      padding-bottom: var(--s6);
+      border-bottom: 1px solid var(--border-glass);
+    }
+    .api-results-header {
+      margin-bottom: var(--s5);
+    }
+    .api-results-header h2 {
+      font-size: var(--text-xl);
+      margin-bottom: var(--s1);
+    }
+    .api-results-header p {
+      font-size: var(--text-sm);
+    }
+    .api-results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: var(--s4);
+    }
+    .api-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--r-xl);
+      overflow: hidden;
+      transition: all var(--t-base) var(--ease-out);
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      color: inherit;
+    }
+    .api-card:hover {
+      border-color: var(--success);
+      transform: translateY(-4px);
+      box-shadow: 0 0 30px rgba(16,185,129,0.15);
+      color: inherit;
+    }
+    .api-card-image {
+      position: relative;
+      height: 180px;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .api-card-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: var(--s4);
+      background: #fff;
+    }
+    .api-card-placeholder { font-size: 3rem; }
+    .api-card-badges {
+      position: absolute;
+      top: var(--s2); left: var(--s2);
+      display: flex;
+      gap: var(--s1);
+    }
+    .api-card-body {
+      padding: var(--s4);
+      flex: 1;
+    }
+    .api-card-source {
+      font-size: var(--text-xs);
+      color: var(--accent-hover);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--s1);
+    }
+    .api-card-title {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.4;
+      margin-bottom: var(--s2);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .api-card-prices {
+      display: flex;
+      align-items: baseline;
+      gap: var(--s2);
+      margin-bottom: var(--s2);
+    }
+    .api-card-price {
+      font-family: var(--font-heading);
+      font-size: var(--text-lg);
+      font-weight: 700;
+      color: var(--success);
+    }
+    .api-card-price-old {
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+      text-decoration: line-through;
+    }
+    .api-card-rating {
+      display: flex;
+      align-items: center;
+      gap: var(--s1);
+      margin-bottom: var(--s2);
+    }
+    .api-card-delivery {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+    .api-card-footer {
+      padding: var(--s3) var(--s4);
+      border-top: 1px solid var(--border-glass);
+    }
+    .skeleton-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--r-xl);
+      overflow: hidden;
+    }
+    .api-unavailable {
+      padding: var(--s4) var(--s6);
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--r-lg);
+      margin-bottom: var(--s6);
+    }
+    .api-unavailable p {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+    .api-unavailable code {
+      padding: var(--s1) var(--s2);
+      background: var(--bg-tertiary);
+      border-radius: var(--r-sm);
+      font-size: var(--text-xs);
+      color: var(--accent-hover);
+    }
+    .demo-separator {
+      display: flex;
+      align-items: center;
+      gap: var(--s4);
+      margin: var(--s6) 0 var(--s4);
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .demo-separator::before,
+    .demo-separator::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border-glass);
+    }
+    .badge-live {
+      background: rgba(16,185,129,0.15);
+      color: var(--success);
+      animation: pulse 2s infinite;
+    }
+  </style>
+</head>
+<body data-page="results">
+
+  <!-- === NAVBAR === -->
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <a href="index.html" class="navbar-brand">
+        <div class="brand-icon">💲</div>
+        PriceReviewer
+      </a>
+      <div class="navbar-search">
+        <div class="search-bar">
+          <div class="search-bar-inner">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" placeholder="Buscar productos, marcas, categorías..." id="nav-search-input" autocomplete="off">
+            <button class="search-btn"><span>Buscar</span></button>
+          </div>
+          <div class="search-suggestions" id="nav-search-suggestions"></div>
+        </div>
+      </div>
+      <div class="navbar-links">
+        <a href="index.html">Inicio</a>
+        <a href="results.html" class="active">Explorar</a>
+      </div>
+      <button class="mobile-menu-btn" aria-label="Menú">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- === MOBILE MENU === -->
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="index.html">Inicio</a>
+    <a href="results.html">Explorar</a>
+  </div>
+
+  <main class="results-page">
+    <div class="container">
+      <!-- Ad Banner Top -->
+      <div class="ad-space ad-banner-top" data-ad-size="728x90">
+        <span class="ad-label">Anuncio</span>
+      </div>
+
+      <!-- Results Header -->
+      <div class="results-header">
+        <h1 id="results-title">Todos los productos</h1>
+        <div class="results-meta">
+          <span class="results-count" id="results-count">Cargando...</span>
+          <div class="sort-bar">
+            <label for="sort-select">Ordenar por:</label>
+            <select class="select" id="sort-select">
+              <option value="relevance">Relevancia</option>
+              <option value="price-asc">Precio: menor a mayor</option>
+              <option value="price-desc">Precio: mayor a menor</option>
+              <option value="discount">Mayor descuento</option>
+              <option value="name">Nombre A-Z</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile filter toggle -->
+      <button class="btn btn-secondary mobile-filter-toggle" id="toggle-filters">
+        ☰ Filtros
+      </button>
+
+      <!-- Results Layout -->
+      <div class="results-layout">
+        <!-- Sidebar Filters -->
+        <aside class="filters-sidebar" id="filters-sidebar">
+
+          <!-- Category Filter -->
+          <div class="filter-card glass-card">
+            <h3>📂 Categoría</h3>
+            <div class="filter-group" id="filter-categories">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Price Range -->
+          <div class="filter-card glass-card">
+            <h3>💰 Rango de Precio</h3>
+            <div class="price-range-inputs">
+              <input type="number" class="input" id="price-min" placeholder="Mín" min="0">
+              <span class="separator">—</span>
+              <input type="number" class="input" id="price-max" placeholder="Máx" min="0">
+            </div>
+            <button class="btn btn-sm btn-primary filter-apply-btn" id="price-apply">Aplicar</button>
+          </div>
+
+          <!-- Store Filter -->
+          <div class="filter-card glass-card">
+            <h3>🏪 Tiendas</h3>
+            <div class="filter-group" id="filter-stores">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Stock Filter -->
+          <div class="filter-card glass-card">
+            <h3>📦 Disponibilidad</h3>
+            <div class="filter-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-stock"> Solo productos disponibles
+              </label>
+            </div>
+          </div>
+
+          <!-- Clear Filters -->
+          <button class="btn btn-secondary" id="clear-filters" style="width:100%;margin-bottom:var(--s4);">
+            🗑️ Limpiar Filtros
+          </button>
+
+          <!-- Sidebar Ad -->
+          <div class="sidebar-ad-wrapper">
+            <div class="ad-space ad-sidebar" data-ad-size="300x250">
+              <span class="ad-label">Anuncio</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Product Grid -->
+        <div>
+          <!-- API Results (Real-time from Google Shopping) -->
+          <div id="api-results-section" style="display:none;"></div>
+
+          <!-- Separator between API and demo results -->
+          <div id="demo-separator" style="display:none;" class="demo-separator">
+            <span>📦 También en nuestra base de datos</span>
+          </div>
+
+          <div class="results-grid" id="results-grid">
+            <!-- Rendered by JS -->
+          </div>
+          <div class="pagination" id="pagination">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Ad -->
+      <div class="ad-space ad-banner-bottom" data-ad-size="728x90">
+        <span class="ad-label">Anuncio</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- === FOOTER === -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">
+            <div class="brand-icon">💲</div>
+            PriceReviewer
+          </div>
+          <p class="footer-desc">
+            Compara precios de miles de productos en tiempo real. Encuentra el mejor precio y la tienda más confiable.
+          </p>
+          <div class="footer-social">
+            <a href="#" aria-label="Twitter">𝕏</a>
+            <a href="#" aria-label="Facebook">f</a>
+            <a href="#" aria-label="Instagram">📷</a>
+            <a href="#" aria-label="YouTube">▶</a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <h4>Producto</h4>
+          <a href="results.html">Explorar</a>
+          <a href="#">Categorías</a>
+          <a href="#">Ofertas del día</a>
+          <a href="#">Alertas de precio</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compañía</h4>
+          <a href="#">Sobre nosotros</a>
+          <a href="#">Blog</a>
+          <a href="#">Contacto</a>
+          <a href="#">Trabaja con nosotros</a>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <a href="#">Términos de uso</a>
+          <a href="#">Privacidad</a>
+          <a href="#">Cookies</a>
+          <a href="#">Afiliados</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 PriceReviewer. Todos los derechos reservados.</span>
+        <span>Hecho con ❤️ para compradores inteligentes</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/ads.js"></script>
+  <script>
+    // Mobile filter toggle
+    document.getElementById('toggle-filters').addEventListener('click', function() {
+      document.getElementById('filters-sidebar').classList.toggle('open');
+      this.textContent = document.getElementById('filters-sidebar').classList.contains('open') ? '✕ Cerrar Filtros' : '☰ Filtros';
+    });
+  </script>
+</body>
+</html>
