@@ -181,6 +181,6 @@ class handler(BaseHTTPRequestHandler):
     def _json_response(self, status, data):
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Origin', 'https://price-reviewer.vercel.app')
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))

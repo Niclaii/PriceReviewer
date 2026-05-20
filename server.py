@@ -21,7 +21,14 @@ import requests as http_requests
 # ---------------------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder=BASE_DIR)
-CORS(app)
+
+# Restrict API access to authorized domains
+ALLOWED_ORIGINS = [
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+    "https://price-reviewer.vercel.app"
+]
+CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGINS}})
 
 # Auto-load .env file if it exists (no extra dependency needed)
 _env_path = os.path.join(BASE_DIR, '.env')
