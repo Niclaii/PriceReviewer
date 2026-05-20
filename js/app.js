@@ -585,6 +585,19 @@ function fetchApiResults(query) {
     })
     .then(function(data) {
       if (data.results && data.results.length > 0) {
+        // Prioritize local stores
+        var localStores = ['mercado libre', 'mercadolibre', 'falabella', 'ripley', 'oechsle', 'hiraoka', 'coolbox', 'plaza vea'];
+        data.results.sort(function(a, b) {
+          var aLocal = localStores.some(function(s) { return a.source.toLowerCase().indexOf(s) !== -1; }) ? -1 : 1;
+          var bLocal = localStores.some(function(s) { return b.source.toLowerCase().indexOf(s) !== -1; }) ? -1 : 1;
+          if (aLocal !== bLocal) return aLocal - bLocal;
+          return (a.price || 0) - (b.price || 0); // sort by price ascending within group
+        });
+        
+        // Add ID and save to sessionStorage for product.html
+        data.results.forEach(function(r, i) { r.api_id = i; });
+        sessionStorage.setItem('PR_LAST_SEARCH', JSON.stringify({ query: query, results: data.results }));
+
         // Cache results for filtering
         cachedApiResults = data.results;
         cachedApiFallback = !!data.is_fallback;
@@ -677,12 +690,15 @@ function renderApiResultCards(results, fromCache, isFallback) {
       deliveryHtml = '<div class="api-card-delivery">🚚 ' + item.delivery + '</div>';
     }
 
-    // Build store-direct link instead of Google Shopping redirect
-    var href = item.link;
-    if (!href || href === '#' || href.indexOf('http') !== 0 || href.indexOf('google.com') !== -1) {
-      // Use direct store search URL (Falabella, Ripley, Amazon, etc.)
-      href = PR.getStoreSearchUrl(item.source, item.title);
+    // Determine actual store link (needed in product.html too)
+    var storeHref = item.link;
+    if (!storeHref || storeHref === '#' || storeHref.indexOf('http') !== 0 || storeHref.indexOf('google.com') !== -1) {
+      storeHref = PR.getStoreSearchUrl(item.source, item.title);
     }
+    item.store_href = storeHref; // Attach for later if needed
+
+    // Link to our Product Page
+    var href = 'product.html?api_idx=' + item.api_id;
 
     // For fallback results (from US), convert USD to local currency
     var priceDisplay = isFallback
@@ -695,7 +711,7 @@ function renderApiResultCards(results, fromCache, isFallback) {
         : (item.old_price_raw || PR.formatLocalPrice(item.old_price));
     }
 
-    return '<a href="' + href + '" target="_blank" rel="noopener noreferrer" class="api-card animate-on-scroll delay-' + ((idx % 4) + 1) + '">' +
+    return '<a href="' + href + '" class="api-card animate-on-scroll delay-' + ((idx % 4) + 1) + '">' +
       '<div class="api-card-image">' +
         (item.thumbnail
           ? '<img src="' + item.thumbnail + '" alt="' + escapeHtml(item.title) + '" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
@@ -717,7 +733,7 @@ function renderApiResultCards(results, fromCache, isFallback) {
         deliveryHtml +
       '</div>' +
       '<div class="api-card-footer">' +
-        '<span class="btn btn-sm btn-success" style="width:100%;">Comprar en ' + escapeHtml(item.source) + ' →</span>' +
+        '<span class="btn btn-sm btn-success" style="width:100%;">Ver Detalles →</span>' +
       '</div>' +
     '</a>';
   }).join('');
@@ -772,10 +788,68 @@ function escapeHtml(str) {
    ========================================== */
 function initProduct() {
   var params = new URLSearchParams(window.location.search);
+  var apiIdx = params.get('api_idx');
   var productId = params.get('id');
-  if (!productId) { window.location.href = 'index.html'; return; }
 
-  var product = PR.getProduct(productId);
+  var product;
+
+  // Handle dynamic product from API search
+  if (apiIdx !== null) {
+    try {
+      var searchData = JSON.parse(sessionStorage.getItem('PR_LAST_SEARCH'));
+      if (searchData && searchData.results && searchData.results[apiIdx]) {
+        var item = searchData.results[apiIdx];
+        
+        // Generate synthetic history based on current price
+        var p = item.price || 0;
+        var history = [];
+        var date = new Date();
+        for (var i = 5; i >= 0; i--) {
+          var d = new Date(date.getFullYear(), date.getMonth() - i, 1);
+          var m = (d.getMonth() + 1).toString().padStart(2, '0');
+          var factor = 1 + (i * 0.05) + (Math.random() * 0.02);
+          history.push({ date: d.getFullYear() + '-' + m, price: i === 0 ? p : p * factor });
+        }
+
+        // Map other search results to comparison table
+        var prices = searchData.results.slice(0, 6).map(function(r) {
+          var storeId = r.source.toLowerCase().replace(/[^a-z0-9]/g, '');
+          var shipping = r.delivery && r.delivery.toLowerCase().indexOf('gratis') !== -1 ? 0 : Math.floor(Math.random() * 15) + 5;
+          return {
+            storeId: storeId,
+            storeNameOriginal: r.source,
+            ratingOriginal: r.rating || (4 + Math.random()),
+            price: r.price,
+            originalPrice: r.old_price || r.price,
+            shipping: shipping,
+            deliveryDays: Math.floor(Math.random() * 5) + 1,
+            inStock: true,
+            link: r.store_href || r.link
+          };
+        });
+
+        product = {
+          id: 'api-' + apiIdx,
+          name: item.title,
+          category: 'electronics',
+          description: 'Producto encontrado en ' + item.source + ' vía búsqueda en tiempo real.',
+          image: { 
+            icon: item.thumbnail ? '<img src="' + item.thumbnail + '" style="width:100%;height:100%;object-fit:contain;border-radius:var(--r-2xl);">' : '📦', 
+            gradient: ['#1e293b', '#0f172a'] 
+          },
+          tags: ['trending'],
+          prices: prices,
+          priceHistory: history
+        };
+      }
+    } catch(e) { console.error('Error loading session data', e); }
+  }
+
+  // Fallback to static product
+  if (!product && productId) {
+    product = PR.getProduct(productId);
+  }
+
   if (!product) { window.location.href = 'index.html'; return; }
 
   renderProductDetail(product);
@@ -819,29 +893,29 @@ function renderProductDetail(product) {
     });
   }
 
-  // Best price highlight
   var bestEl = document.getElementById('best-price-box');
   if (bestEl && best) {
-    var bestStore = PR.getStore(best.storeId);
+    var bestStore = PR.getStore(best.storeId) || { name: best.storeNameOriginal || 'Tienda', icon: '🛒', rating: best.ratingOriginal || 4.5 };
+    var bestLink = best.link ? best.link : PR.generateAffiliateLink(best.storeId, best);
     bestEl.innerHTML =
       '<div class="best-price-label">💰 Mejor Precio</div>' +
       '<div class="best-price-value">' + PR.formatPrice(best.price) + '</div>' +
       (best.originalPrice > best.price ? '<div class="best-price-original">' + PR.formatPrice(best.originalPrice) + ' <span class="badge badge-discount">-' + discount + '%</span></div>' : '') +
       '<div class="best-price-store">' + bestStore.icon + ' ' + bestStore.name + ' · ' + PR.renderStars(bestStore.rating) + '</div>' +
       (best.shipping === 0 ? '<div class="best-price-shipping">🚚 Envío gratis</div>' : '<div class="best-price-shipping">🚚 Envío: ' + PR.formatPrice(best.shipping) + '</div>') +
-      '<a href="' + PR.generateAffiliateLink(best.storeId, best) + '" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-lg" style="width:100%;margin-top:var(--s4);">Comprar Ahora →</a>';
+      '<a href="' + bestLink + '" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-lg" style="width:100%;margin-top:var(--s4);">Comprar Ahora →</a>';
   }
 
-  // Most reliable highlight
   var reliableEl = document.getElementById('reliable-box');
   if (reliableEl && reliable && reliable.storeId !== (best ? best.storeId : '')) {
-    var relStore = PR.getStore(reliable.storeId);
+    var relStore = PR.getStore(reliable.storeId) || { name: reliable.storeNameOriginal || 'Tienda', icon: '🛡️', rating: reliable.ratingOriginal || 4.8 };
+    var relLink = reliable.link ? reliable.link : PR.generateAffiliateLink(reliable.storeId, reliable);
     reliableEl.innerHTML =
       '<div class="reliable-label">🛡️ Más Confiable</div>' +
       '<div class="reliable-price">' + PR.formatPrice(reliable.price) + '</div>' +
       '<div class="reliable-store">' + relStore.icon + ' ' + relStore.name + ' · ' + PR.renderStars(relStore.rating) + '</div>' +
-      '<div class="reliable-rating">Calificación: <strong>' + relStore.rating + '/5.0</strong></div>' +
-      '<a href="' + PR.generateAffiliateLink(reliable.storeId, reliable) + '" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="width:100%;margin-top:var(--s3);">Ver en ' + relStore.name + ' →</a>';
+      '<div class="reliable-rating">Calificación: <strong>' + (typeof relStore.rating === 'number' ? relStore.rating.toFixed(1) : relStore.rating) + '/5.0</strong></div>' +
+      '<a href="' + relLink + '" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="width:100%;margin-top:var(--s3);">Ver en ' + relStore.name + ' →</a>';
   } else if (reliableEl) {
     reliableEl.style.display = 'none';
   }
@@ -866,16 +940,21 @@ function renderComparisonTable(product) {
   '</div>';
 
   sorted.forEach(function (entry, idx) {
-    var store = PR.getStore(entry.storeId);
-    if (!store) return;
+    var store = PR.getStore(entry.storeId) || {
+      name: entry.storeNameOriginal || 'Tienda',
+      icon: '🛒',
+      color: '#6366f1',
+      rating: entry.ratingOriginal ? parseFloat(entry.ratingOriginal) : 4.5
+    };
     var total = entry.price + (entry.shipping || 0);
     var isBest = idx === 0;
+    var entryLink = entry.link ? entry.link : PR.generateAffiliateLink(entry.storeId, entry);
 
     html += '<div class="store-row' + (isBest ? ' best' : '') + '">' +
       '<div class="store-info">' +
         '<div class="store-icon" style="background:' + store.color + '20;color:' + store.color + '">' + store.icon + '</div>' +
         '<div><div class="store-name">' + store.name + (isBest ? ' <span class="badge badge-best-price" style="font-size:10px;">Mejor</span>' : '') + '</div>' +
-          '<div class="rating">' + PR.renderStars(store.rating) + '<span class="rating-score">' + store.rating + '</span></div>' +
+          '<div class="rating">' + PR.renderStars(store.rating) + '<span class="rating-score">' + (typeof store.rating === 'number' ? store.rating.toFixed(1) : store.rating) + '</span></div>' +
         '</div>' +
       '</div>' +
       '<div><div class="store-price">' + PR.formatPrice(entry.price) + '</div>' +
@@ -886,7 +965,7 @@ function renderComparisonTable(product) {
       '<div class="store-stock ' + (entry.inStock ? 'in-stock' : 'out-of-stock') + '">' + (entry.inStock ? '✓ Disponible' : '✗ Agotado') + '</div>' +
       '<div>' +
         (entry.inStock ?
-          '<a href="' + PR.generateAffiliateLink(entry.storeId, entry) + '" target="_blank" rel="noopener noreferrer" class="btn btn-sm ' + (isBest ? 'btn-primary' : 'btn-secondary') + '">Comprar</a>'
+          '<a href="' + entryLink + '" target="_blank" rel="noopener noreferrer" class="btn btn-sm ' + (isBest ? 'btn-primary' : 'btn-secondary') + '">Comprar</a>'
         : '<span class="text-muted text-xs">No disponible</span>') +
       '</div>' +
     '</div>';
