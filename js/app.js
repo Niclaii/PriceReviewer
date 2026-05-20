@@ -787,11 +787,12 @@ function escapeHtml(str) {
    PRODUCT PAGE
    ========================================== */
 function initProduct() {
-  var params = new URLSearchParams(window.location.search);
-  var apiIdx = params.get('api_idx');
-  var productId = params.get('id');
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var apiIdx = params.get('api_idx');
+    var productId = params.get('id');
 
-  var product;
+    var product;
 
   // Handle dynamic product from API search
   if (apiIdx !== null) {
@@ -813,11 +814,12 @@ function initProduct() {
 
         // Map other search results to comparison table
         var prices = searchData.results.slice(0, 6).map(function(r) {
-          var storeId = r.source.toLowerCase().replace(/[^a-z0-9]/g, '');
+          var sourceStr = r.source || 'Tienda';
+          var storeId = sourceStr.toLowerCase().replace(/[^a-z0-9]/g, '');
           var shipping = r.delivery && r.delivery.toLowerCase().indexOf('gratis') !== -1 ? 0 : Math.floor(Math.random() * 15) + 5;
           return {
             storeId: storeId,
-            storeNameOriginal: r.source,
+            storeNameOriginal: sourceStr,
             ratingOriginal: r.rating || (4 + Math.random()),
             price: r.price,
             originalPrice: r.old_price || r.price,
@@ -830,9 +832,9 @@ function initProduct() {
 
         product = {
           id: 'api-' + apiIdx,
-          name: item.title,
+          name: item.title || 'Producto',
           category: 'electronics',
-          description: 'Producto encontrado en ' + item.source + ' vía búsqueda en tiempo real.',
+          description: 'Producto encontrado en ' + (item.source || 'Google Shopping') + ' vía búsqueda en tiempo real.',
           image: { 
             icon: item.thumbnail ? '<img src="' + item.thumbnail + '" style="width:100%;height:100%;object-fit:contain;border-radius:var(--r-2xl);">' : '📦', 
             gradient: ['#1e293b', '#0f172a'] 
@@ -850,13 +852,22 @@ function initProduct() {
     product = PR.getProduct(productId);
   }
 
-  if (!product) { window.location.href = 'index.html'; return; }
+    if (!product) { 
+      document.getElementById('product-name').textContent = "Producto no encontrado";
+      document.getElementById('product-description').textContent = "Por favor realiza la búsqueda nuevamente.";
+      return;
+    }
 
-  renderProductDetail(product);
-  renderComparisonTable(product);
-  renderPriceChart(product);
-  renderRelatedProducts(product);
-  initPriceAlert(product);
+    renderProductDetail(product);
+    renderComparisonTable(product);
+    renderPriceChart(product);
+    renderRelatedProducts(product);
+    initPriceAlert(product);
+  } catch (e) {
+    console.error(e);
+    document.getElementById('product-name').textContent = "Error interno";
+    document.getElementById('product-description').innerHTML = "Ocurrió un error al cargar el producto:<br><code style='color:red;'>" + e.message + "</code>";
+  }
 }
 
 function renderProductDetail(product) {
