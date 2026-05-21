@@ -611,6 +611,13 @@ function fetchApiResults(query) {
             if (r.old_price) r.old_price = r.old_price * exchangeRate;
             r.converted_to_pen = true;
           }
+
+          // Clean up the link (SerpAPI sometimes returns relative google redirects or broken links)
+          var storeHref = r.link;
+          if (!storeHref || storeHref === '#' || storeHref.indexOf('http') !== 0 || storeHref.indexOf('google.com') !== -1) {
+            storeHref = PR.getStoreSearchUrl(r.source || '', r.title || '');
+          }
+          r.clean_link = storeHref;
         });
 
         // Group by product title, capacity, and color
@@ -782,13 +789,6 @@ function renderApiResultCards(results, fromCache, isFallback) {
       deliveryHtml = '<div class="api-card-delivery">🚚 ' + item.delivery + '</div>';
     }
 
-    // Determine actual store link (needed in product.html too)
-    var storeHref = item.link;
-    if (!storeHref || storeHref === '#' || storeHref.indexOf('http') !== 0 || storeHref.indexOf('google.com') !== -1) {
-      storeHref = PR.getStoreSearchUrl(item.source, item.title);
-    }
-    item.store_href = storeHref; // Attach for later if needed
-
     // Link to our Product Page
     var href = 'product.html?api_idx=' + item.api_id;
 
@@ -914,7 +914,7 @@ function initProduct() {
               shipping: shipping,
               deliveryDays: Math.floor(Math.random() * 5) + 1,
               inStock: true,
-              link: r.store_href || r.link
+              link: r.clean_link || r.link
             };
           });
 
