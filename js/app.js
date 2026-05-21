@@ -585,24 +585,70 @@ function fetchApiResults(query) {
     })
     .then(function(data) {
       if (data.results && data.results.length > 0) {
-        // Prioritize local stores
+        // Apply USD to PEN conversion to all items
+        var exchangeRate = 3.80; // 1 USD = 3.80 PEN
+        data.results.forEach(function(r) {
+          var isUSStore = ['amazon', 'ebay', 'best buy', 'walmart', 'newegg', 'target', 'b&h'].some(function(s) { return (r.source||'').toLowerCase().indexOf(s) !== -1; });
+          if (r.currency === 'USD' || isUSStore || r.price < 500 && (r.title||'').toLowerCase().indexOf('iphone') !== -1) { // iPhone under 500 is likely USD
+            r.price = (r.price || 0) * exchangeRate;
+            if (r.old_price) r.old_price = r.old_price * exchangeRate;
+            r.converted_to_pen = true;
+          }
+        });
+
+        // Group by product title
+        var groups = {};
+        data.results.forEach(function(r) {
+          var normTitle = (r.title || 'Producto').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+          if (!groups[normTitle]) {
+            groups[normTitle] = {
+              title: r.title,
+              thumbnail: r.thumbnail,
+              offers: [],
+              api_id: 'grp_' + Object.keys(groups).length
+            };
+          }
+          groups[normTitle].offers.push(r);
+        });
+
+        var groupedResults = Object.keys(groups).map(function(k) {
+          var g = groups[k];
+          var bestPrice = Math.min.apply(null, g.offers.map(function(o) { return o.price || 999999; }));
+          var oldPrice = Math.max.apply(null, g.offers.map(function(o) { return o.old_price || 0; }));
+          if (oldPrice <= bestPrice) oldPrice = null;
+          
+          var stores = g.offers.map(function(o) { return o.source; }).filter(function(v, i, a) { return a.indexOf(v) === i; });
+          
+          return {
+            api_id: g.api_id,
+            title: g.title,
+            thumbnail: g.thumbnail,
+            price: bestPrice,
+            old_price: oldPrice,
+            store_count: g.offers.length,
+            stores: stores,
+            source: stores.length + (stores.length === 1 ? ' tienda' : ' tiendas') + (g.offers.some(function(o) { return o.converted_to_pen; }) ? ' (Aprox. USD a PEN)' : ''),
+            is_group: true,
+            raw_offers: g.offers
+          };
+        });
+
+        // Prioritize groups with local stores
         var localStores = ['mercado libre', 'mercadolibre', 'falabella', 'ripley', 'oechsle', 'hiraoka', 'coolbox', 'plaza vea'];
-        data.results.sort(function(a, b) {
-          var aLocal = localStores.some(function(s) { return a.source.toLowerCase().indexOf(s) !== -1; }) ? -1 : 1;
-          var bLocal = localStores.some(function(s) { return b.source.toLowerCase().indexOf(s) !== -1; }) ? -1 : 1;
+        groupedResults.sort(function(a, b) {
+          var aLocal = a.stores.some(function(s) { return localStores.some(function(l) { return s.toLowerCase().indexOf(l) !== -1; }); }) ? -1 : 1;
+          var bLocal = b.stores.some(function(s) { return localStores.some(function(l) { return s.toLowerCase().indexOf(l) !== -1; }); }) ? -1 : 1;
           if (aLocal !== bLocal) return aLocal - bLocal;
-          return (a.price || 0) - (b.price || 0); // sort by price ascending within group
+          return (a.price || 0) - (b.price || 0);
         });
         
-        // Add ID and save to sessionStorage for product.html
-        data.results.forEach(function(r, i) { r.api_id = i; });
-        sessionStorage.setItem('PR_LAST_SEARCH', JSON.stringify({ query: query, results: data.results }));
+        sessionStorage.setItem('PR_LAST_SEARCH', JSON.stringify({ query: query, results: groupedResults }));
 
         // Cache results for filtering
-        cachedApiResults = data.results;
+        cachedApiResults = groupedResults;
         cachedApiFallback = !!data.is_fallback;
         // Show API results and the demo separator
-        renderApiResultCards(data.results, data.from_cache, data.is_fallback);
+        renderApiResultCards(groupedResults, data.from_cache, data.is_fallback);
         if (demoSep) demoSep.style.display = 'flex';
       } else if (data.api_available === false) {
         section.innerHTML =
@@ -678,7 +724,7 @@ function renderApiResultCards(results, fromCache, isFallback) {
     }
 
     var ratingHtml = '';
-    if (item.rating) {
+    if (item.rating && !item.is_group) {
       ratingHtml = '<div class="api-card-rating">' + PR.renderStars(item.rating) +
         '<span class="rating-score">' + item.rating + '</span>' +
         (item.reviews ? '<span class="rating-count">(' + item.reviews.toLocaleString() + ')</span>' : '') +
@@ -700,15 +746,11 @@ function renderApiResultCards(results, fromCache, isFallback) {
     // Link to our Product Page
     var href = 'product.html?api_idx=' + item.api_id;
 
-    // For fallback results (from US), convert USD to local currency
-    var priceDisplay = isFallback
-      ? PR.formatPrice(item.price)
-      : (item.price_raw || PR.formatLocalPrice(item.price));
+    // We convert everything to local display now
+    var priceDisplay = PR.formatLocalPrice ? PR.formatLocalPrice(item.price) : 'S/ ' + Math.round(item.price);
     var oldPriceDisplay = '';
     if (item.old_price) {
-      oldPriceDisplay = isFallback
-        ? PR.formatPrice(item.old_price)
-        : (item.old_price_raw || PR.formatLocalPrice(item.old_price));
+      oldPriceDisplay = PR.formatLocalPrice ? PR.formatLocalPrice(item.old_price) : 'S/ ' + Math.round(item.old_price);
     }
 
     return '<a href="' + href + '" class="api-card animate-on-scroll delay-' + ((idx % 4) + 1) + '">' +
@@ -723,17 +765,17 @@ function renderApiResultCards(results, fromCache, isFallback) {
         '</div>' +
       '</div>' +
       '<div class="api-card-body">' +
-        '<div class="api-card-source">' + escapeHtml(item.source) + '</div>' +
+        '<div class="api-card-source" style="' + (item.source.indexOf('Aprox') !== -1 ? 'color:var(--warning);' : '') + '">' + escapeHtml(item.source) + '</div>' +
         '<div class="api-card-title">' + escapeHtml(item.title) + '</div>' +
         '<div class="api-card-prices">' +
-          '<span class="api-card-price">' + priceDisplay + '</span>' +
+          '<span class="api-card-price"><span style="font-size:0.7em;font-weight:normal;color:var(--text-muted);">' + (item.is_group ? 'Desde ' : '') + '</span>' + priceDisplay + '</span>' +
           (oldPriceDisplay ? '<span class="api-card-price-old">' + oldPriceDisplay + '</span>' : '') +
         '</div>' +
         ratingHtml +
         deliveryHtml +
       '</div>' +
       '<div class="api-card-footer">' +
-        '<span class="btn btn-sm btn-success" style="width:100%;">Ver Detalles →</span>' +
+        '<span class="btn btn-sm btn-success" style="width:100%;">Comparar ' + (item.is_group ? item.stores.length : '1') + ' Tiendas →</span>' +
       '</div>' +
     '</a>';
   }).join('');
@@ -798,51 +840,52 @@ function initProduct() {
   if (apiIdx !== null) {
     try {
       var searchData = JSON.parse(sessionStorage.getItem('PR_LAST_SEARCH'));
-      if (searchData && searchData.results && searchData.results[apiIdx]) {
-        var item = searchData.results[apiIdx];
-        
-        // Generate synthetic history based on current price
-        var p = item.price || 0;
-        var history = [];
-        var date = new Date();
-        for (var i = 5; i >= 0; i--) {
-          var d = new Date(date.getFullYear(), date.getMonth() - i, 1);
-          var m = (d.getMonth() + 1).toString().padStart(2, '0');
-          var factor = 1 + (i * 0.05) + (Math.random() * 0.02);
-          history.push({ date: d.getFullYear() + '-' + m, price: i === 0 ? p : p * factor });
-        }
+      if (searchData && searchData.results) {
+        var item = searchData.results.find(function(r) { return r.api_id == apiIdx; });
+        if (item) {
+          // Generate synthetic history based on current price
+          var p = item.price || 0;
+          var history = [];
+          var date = new Date();
+          for (var i = 5; i >= 0; i--) {
+            var d = new Date(date.getFullYear(), date.getMonth() - i, 1);
+            var m = (d.getMonth() + 1).toString().padStart(2, '0');
+            var factor = 1 + (i * 0.05) + (Math.random() * 0.02);
+            history.push({ date: d.getFullYear() + '-' + m, price: i === 0 ? p : p * factor });
+          }
 
-        // Map other search results to comparison table
-        var prices = searchData.results.slice(0, 6).map(function(r) {
-          var sourceStr = r.source || 'Tienda';
-          var storeId = sourceStr.toLowerCase().replace(/[^a-z0-9]/g, '');
-          var shipping = r.delivery && r.delivery.toLowerCase().indexOf('gratis') !== -1 ? 0 : Math.floor(Math.random() * 15) + 5;
-          return {
-            storeId: storeId,
-            storeNameOriginal: sourceStr,
-            ratingOriginal: r.rating || (4 + Math.random()),
-            price: r.price,
-            originalPrice: r.old_price || r.price,
-            shipping: shipping,
-            deliveryDays: Math.floor(Math.random() * 5) + 1,
-            inStock: true,
-            link: r.store_href || r.link
+          // Map the raw offers from the group into the prices array
+          var prices = (item.raw_offers || []).map(function(r) {
+            var sourceStr = r.source || 'Tienda';
+            var storeId = sourceStr.toLowerCase().replace(/[^a-z0-9]/g, '');
+            var shipping = r.delivery && r.delivery.toLowerCase().indexOf('gratis') !== -1 ? 0 : Math.floor(Math.random() * 15) + 5;
+            return {
+              storeId: storeId,
+              storeNameOriginal: sourceStr,
+              ratingOriginal: r.rating || (4 + Math.random()),
+              price: r.price,
+              originalPrice: r.old_price || r.price,
+              shipping: shipping,
+              deliveryDays: Math.floor(Math.random() * 5) + 1,
+              inStock: true,
+              link: r.store_href || r.link
+            };
+          });
+
+          product = {
+            id: 'api-' + apiIdx,
+            name: item.title || 'Producto',
+            category: 'electronics',
+            description: 'Producto encontrado en múltiples tiendas vía búsqueda en tiempo real.',
+            image: { 
+              icon: item.thumbnail ? '<img src="' + item.thumbnail + '" style="width:100%;height:100%;object-fit:contain;border-radius:var(--r-2xl);">' : '📦', 
+              gradient: ['#1e293b', '#0f172a'] 
+            },
+            tags: ['trending'],
+            prices: prices,
+            priceHistory: history
           };
-        });
-
-        product = {
-          id: 'api-' + apiIdx,
-          name: item.title || 'Producto',
-          category: 'electronics',
-          description: 'Producto encontrado en ' + (item.source || 'Google Shopping') + ' vía búsqueda en tiempo real.',
-          image: { 
-            icon: item.thumbnail ? '<img src="' + item.thumbnail + '" style="width:100%;height:100%;object-fit:contain;border-radius:var(--r-2xl);">' : '📦', 
-            gradient: ['#1e293b', '#0f172a'] 
-          },
-          tags: ['trending'],
-          prices: prices,
-          priceHistory: history
-        };
+        }
       }
     } catch(e) { console.error('Error loading session data', e); }
   }

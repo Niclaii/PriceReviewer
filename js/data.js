@@ -551,8 +551,8 @@ PR.getMostReliable = function(product) {
   const inStock = product.prices.filter(p => p.inStock);
   if (!inStock.length) return null;
   return inStock.reduce((best, p) => {
-    const store = PR.getStore(p.storeId);
-    const bestStore = PR.getStore(best.storeId);
+    const store = PR.getStore(p.storeId) || { rating: p.ratingOriginal || 4.0 };
+    const bestStore = PR.getStore(best.storeId) || { rating: best.ratingOriginal || 4.0 };
     return store.rating > bestStore.rating ? p : best;
   });
 };
