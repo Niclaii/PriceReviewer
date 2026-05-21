@@ -577,17 +577,9 @@ PR.getMaxDiscount = function(product) {
   return maxDiscount;
 };
 
-/** Format price — converts from USD to user's local currency */
+/** Format price - standardized to local currency */
 PR.formatPrice = function(amount) {
-  var converted = Math.round(amount * PR.currency.rate);
-  try {
-    return new Intl.NumberFormat(PR.currency.locale, {
-      style: 'currency', currency: PR.currency.code,
-      minimumFractionDigits: 0, maximumFractionDigits: 0,
-    }).format(converted);
-  } catch(e) {
-    return PR.currency.symbol + ' ' + converted.toLocaleString();
-  }
+  return PR.formatLocalPrice(amount);
 };
 
 /** Format a price that's already in local currency (for API results) */
@@ -813,6 +805,20 @@ PR.sortProducts = function(products, sortBy) {
   }
   return sorted;
 };
+
+/* Convert demo products to local currency */
+PR.products.forEach(p => {
+  p.prices.forEach(pr => {
+    pr.price = Math.round(pr.price * PR.currency.rate);
+    pr.originalPrice = Math.round(pr.originalPrice * PR.currency.rate);
+    pr.shipping = Math.round((pr.shipping || 0) * PR.currency.rate);
+  });
+  if (p.priceHistory) {
+    p.priceHistory.forEach(ph => {
+      ph.price = Math.round(ph.price * PR.currency.rate);
+    });
+  }
+});
 
 /* Export namespace */
 window.PR = PR;

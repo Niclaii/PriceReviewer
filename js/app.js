@@ -585,6 +585,17 @@ function fetchApiResults(query) {
     })
     .then(function(data) {
       if (data.results && data.results.length > 0) {
+        
+        // Filter out junk/accessories if the user didn't explicitly search for them
+        var filterWords = ['case', 'funda', 'cover', 'protector', 'mica', 'cable', 'cargador', 'charger', 'silicone', 'vidrio templado', 'correa', 'band'];
+        var qNorm = query.toLowerCase();
+        data.results = data.results.filter(function(r) {
+           var t = (r.title || '').toLowerCase();
+           var isAccessory = filterWords.some(function(w) { return t.indexOf(w) !== -1; });
+           var queryHasAccessory = filterWords.some(function(w) { return qNorm.indexOf(w) !== -1; });
+           return queryHasAccessory || !isAccessory;
+        });
+
         // Apply USD to PEN conversion to all items
         var exchangeRate = 3.80; // 1 USD = 3.80 PEN
         data.results.forEach(function(r) {
