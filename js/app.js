@@ -587,13 +587,19 @@ function fetchApiResults(query) {
       if (data.results && data.results.length > 0) {
         
         // Filter out junk/accessories if the user didn't explicitly search for them
+        // Filter out junk/accessories if the user didn't explicitly search for them
         var filterWords = ['case', 'funda', 'cover', 'protector', 'mica', 'cable', 'cargador', 'charger', 'silicone', 'vidrio templado', 'correa', 'band'];
+        var planWords = ['plan', 'monthly', 'cuotas', 'pago mensual', 'meses', 'locked', 'at&t', 'verizon', 't-mobile', 'tmobile', 'sprint', 'cricket', 'tracfone'];
         var qNorm = query.toLowerCase();
+        
+        var colors = ['black', 'white', 'pink', 'blue', 'green', 'yellow', 'red', 'purple', 'titanium', 'natural', 'desert', 'midnight', 'starlight', 'silver', 'space gray', 'gold', 'negro', 'blanco', 'rosa', 'azul', 'verde', 'amarillo', 'rojo', 'morado', 'plateado', 'dorado', 'gris'];
+
         data.results = data.results.filter(function(r) {
            var t = (r.title || '').toLowerCase();
            var isAccessory = filterWords.some(function(w) { return t.indexOf(w) !== -1; });
+           var isPlan = planWords.some(function(w) { return t.indexOf(w) !== -1; });
            var queryHasAccessory = filterWords.some(function(w) { return qNorm.indexOf(w) !== -1; });
-           return queryHasAccessory || !isAccessory;
+           return (queryHasAccessory || !isAccessory) && !isPlan;
         });
 
         // Apply USD to PEN conversion to all items
@@ -607,19 +613,48 @@ function fetchApiResults(query) {
           }
         });
 
-        // Group by product title
+        // Group by product title, capacity, and color
         var groups = {};
         data.results.forEach(function(r) {
-          var normTitle = (r.title || 'Producto').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
-          if (!groups[normTitle]) {
-            groups[normTitle] = {
-              title: r.title,
+          var t = (r.title || 'Producto').toLowerCase();
+          
+          var capacityMatch = t.match(/(\d+)\s*(gb|tb)/);
+          var capacity = capacityMatch ? capacityMatch[0].replace(/\s+/g, '').toUpperCase() : '';
+          
+          var color = '';
+          for (var i = 0; i < colors.length; i++) {
+            if (t.indexOf(colors[i]) !== -1) {
+              color = colors[i].charAt(0).toUpperCase() + colors[i].slice(1);
+              break;
+            }
+          }
+          
+          var isUsed = t.indexOf('used') !== -1 || t.indexOf('refurbished') !== -1 || t.indexOf('pre-owned') !== -1 || t.indexOf('restored') !== -1 || t.indexOf('reacondicionado') !== -1 || t.indexOf('usado') !== -1;
+          var condition = isUsed ? 'Usado/Refurbished' : '';
+
+          var cleanTitle = t
+            .replace(/apple/g, '').replace(/samsung/g, '').replace(/smartphone/g, '').replace(/unlocked/g, '').replace(/desbloqueado/g, '').replace(/5g/g, '').replace(/new/g, '').replace(/used/g, '').replace(/refurbished/g, '').replace(/pre-owned/g, '').replace(/restored/g, '').replace(new RegExp((color||'xxxxxx').toLowerCase(), 'g'), '').replace(/(\d+)\s*(gb|tb)/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+          
+          var baseModel = cleanTitle;
+          if (baseModel.length < 4) baseModel = query.toLowerCase();
+          baseModel = baseModel.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
+
+          var smartTitle = baseModel;
+          if (capacity) smartTitle += ' ' + capacity;
+          if (color) smartTitle += ' ' + color;
+          if (condition) smartTitle += ' (' + condition + ')';
+          
+          var smartKey = smartTitle.toLowerCase();
+
+          if (!groups[smartKey]) {
+            groups[smartKey] = {
+              title: smartTitle,
               thumbnail: r.thumbnail,
               offers: [],
               api_id: 'grp_' + Object.keys(groups).length
             };
           }
-          groups[normTitle].offers.push(r);
+          groups[smartKey].offers.push(r);
         });
 
         var groupedResults = Object.keys(groups).map(function(k) {
