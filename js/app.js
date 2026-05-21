@@ -599,7 +599,23 @@ function fetchApiResults(query) {
            var isAccessory = filterWords.some(function(w) { return t.indexOf(w) !== -1; });
            var isPlan = planWords.some(function(w) { return t.indexOf(w) !== -1; });
            var queryHasAccessory = filterWords.some(function(w) { return qNorm.indexOf(w) !== -1; });
-           return (queryHasAccessory || !isAccessory) && !isPlan;
+           
+           // Extract real URL from Google redirects if possible
+           var href = r.link || '';
+           if (href.indexOf('/url?') !== -1 || href.indexOf('google.com/url?') !== -1) {
+             var match = href.match(/[?&](q|url)=([^&]+)/);
+             if (match && match[2]) {
+               try { href = decodeURIComponent(match[2]); } catch(e) {}
+             }
+           }
+           
+           // If the link is still broken or points to a Google Search, filter it out completely
+           var isBrokenLink = !href || href === '#' || href.indexOf('http') !== 0 || href.indexOf('google.com/search') !== -1;
+           if (!isBrokenLink) {
+             r.clean_link = href;
+           }
+
+           return (queryHasAccessory || !isAccessory) && !isPlan && !isBrokenLink;
         });
 
         // Apply USD to PEN conversion to all items
@@ -612,12 +628,9 @@ function fetchApiResults(query) {
             r.converted_to_pen = true;
           }
 
-          // Clean up the link (SerpAPI sometimes returns relative google redirects or broken links)
-          var storeHref = r.link;
-          if (!storeHref || storeHref === '#' || storeHref.indexOf('http') !== 0 || storeHref.indexOf('google.com') !== -1) {
-            storeHref = PR.getStoreSearchUrl(r.source || '', r.title || '');
-          }
-          r.clean_link = storeHref;
+          // We already resolved r.clean_link during the filter phase.
+          // If it's still missing somehow, we fallback to empty string (it shouldn't happen due to the filter)
+          r.clean_link = r.clean_link || '';
         });
 
         // Group by product title, capacity, and color
