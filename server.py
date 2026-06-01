@@ -71,6 +71,29 @@ def _cache_set(key, data):
     _cache[key] = {'data': data, 'ts': time.time()}
 
 
+def _extract_result_link(item):
+    """Return the best available URL from a SerpAPI shopping result."""
+    return (
+        item.get('link')
+        or item.get('product_link')
+        or item.get('serpapi_product_api')
+        or ''
+    )
+
+
+def _extract_currency(item):
+    currency = item.get('currency') or ''
+    if currency:
+        return currency
+
+    raw_price = str(item.get('price', ''))
+    if 'S/' in raw_price:
+        return 'PEN'
+    if '$' in raw_price:
+        return 'USD'
+    return ''
+
+
 # ---------------------------------------------------------------------------
 # Static file serving
 # ---------------------------------------------------------------------------
@@ -102,6 +125,7 @@ def api_search():
             'error': 'Falta el parámetro de búsqueda',
             'results': [],
             'api_available': bool(SERPAPI_KEY),
+            'api_error': 'Falta el parámetro de búsqueda',
         }), 400
 
     # If no API key, signal frontend to use demo data
@@ -109,7 +133,8 @@ def api_search():
         return jsonify({
             'results': [],
             'api_available': False,
-            'message': 'SERPAPI_KEY no configurada. Usa datos demo.',
+            'message': 'SERPAPI_KEY no configurada.',
+            'api_error': '',
         })
 
     # Check cache
@@ -185,7 +210,7 @@ def api_search():
     for item in shopping_results:
         price = item.get('extracted_price')
         title = item.get('title', '')
-        if not price or not title:
+        if price is None or not title:
             continue  # skip incomplete entries
 
         # Handle old_price which can be dict or absent
@@ -203,7 +228,7 @@ def api_search():
             'price': price,
             'price_raw': item.get('price', ''),
             'source': item.get('source', 'Tienda'),
-            'link': item.get('link', '#'),
+            'link': _extract_result_link(item),
             'thumbnail': item.get('thumbnail', ''),
             'rating': item.get('rating') or 0,
             'reviews': item.get('reviews') or 0,
@@ -212,6 +237,7 @@ def api_search():
             'old_price': old_price_val,
             'old_price_raw': old_price_raw,
             'extensions': item.get('extensions', []),
+            'currency': _extract_currency(item),
         })
 
     payload = {

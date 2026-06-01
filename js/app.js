@@ -282,23 +282,45 @@ function initResults() {
     sortSelect.addEventListener('change', function () {
       currentSort = sortSelect.value;
       currentPage = 1;
-      renderResults(query);
-      applyFiltersToApi();
+      if (query) {
+        applyFiltersToApi();
+      } else {
+        renderResults(query);
+      }
     });
   }
 
   // Fetch real-time API results if there's a search query
   if (query) {
+    hideDemoResultsForSearch('Buscando productos reales...');
     fetchApiResults(query);
   } else {
     var apiSection = document.getElementById('api-results-section');
     if (apiSection) apiSection.style.display = 'none';
     var demoSep = document.getElementById('demo-separator');
     if (demoSep) demoSep.style.display = 'none';
+    renderResults(query);
   }
+}
 
-  // Initial render of demo/local results
-  renderResults(query);
+function hideDemoResultsForSearch(message) {
+  var grid = document.getElementById('results-grid');
+  var pagination = document.getElementById('pagination');
+  var demoSep = document.getElementById('demo-separator');
+  var countEl = document.getElementById('results-count');
+
+  if (grid) {
+    grid.innerHTML = '';
+    grid.style.display = 'none';
+  }
+  if (pagination) pagination.innerHTML = '';
+  if (demoSep) demoSep.style.display = 'none';
+  if (countEl && message) countEl.textContent = message;
+}
+
+function showDemoResultsGrid() {
+  var grid = document.getElementById('results-grid');
+  if (grid) grid.style.display = '';
 }
 
 function renderFilters() {
@@ -421,10 +443,12 @@ function applyFiltersToApi() {
   // Filter by store name (match SerpAPI source against our store names)
   if (currentFilters.stores.length > 0) {
     filtered = filtered.filter(function(item) {
-      var srcLower = (item.source || '').toLowerCase();
+      var storeNames = item.stores && item.stores.length ? item.stores : [item.source || ''];
       return currentFilters.stores.some(function(storeId) {
         var store = PR.getStore(storeId);
-        return store && srcLower.indexOf(store.name.toLowerCase()) !== -1;
+        return store && storeNames.some(function(name) {
+          return (name || '').toLowerCase().indexOf(store.name.toLowerCase()) !== -1;
+        });
       });
     });
   }
@@ -449,6 +473,8 @@ function applyFiltersToApi() {
     renderApiResultCards(filtered, false, cachedApiFallback);
   } else {
     var grid = document.getElementById('api-results-grid');
+    var countEl = document.getElementById('results-count');
+    if (countEl) countEl.textContent = '0 productos reales encontrados';
     if (grid) {
       grid.innerHTML =
         '<div style="grid-column:1/-1;text-align:center;padding:2rem 0;">' +
@@ -463,6 +489,12 @@ function renderResults(query) {
   var grid = document.getElementById('results-grid');
   var countEl = document.getElementById('results-count');
   if (!grid) return;
+
+  if (query && query.trim()) {
+    hideDemoResultsForSearch();
+    return;
+  }
+  showDemoResultsGrid();
 
   // Search → Filter → Sort
   var products = PR.searchProducts(query);
@@ -558,6 +590,105 @@ function renderPagination(totalPages) {
 /* ==========================================
    REAL-TIME API RESULTS (Google Shopping via SerpAPI)
    ========================================== */
+function getPreferredSearchCountry() {
+  return 'pe';
+}
+
+function cleanApiLink(link) {
+  var href = (link || '').trim();
+  if (!href) return '';
+
+  if (href.indexOf('google.com/url?') !== -1 || href.indexOf('/url?') !== -1) {
+    var match = href.match(/[?&](q|url)=([^&]+)/);
+    if (match && match[2]) {
+      try { href = decodeURIComponent(match[2]); } catch(e) {}
+    }
+  }
+
+  return href.indexOf('http') === 0 ? href : '';
+}
+
+function getApiOfferLink(offer, query) {
+  var direct = cleanApiLink(offer.link || offer.clean_link);
+  if (direct) return direct;
+  return PR.getStoreSearchUrl(offer.source || 'Tienda', offer.title || query);
+}
+
+function isAccessoryQuery(query) {
+  var q = (query || '').toLowerCase();
+  var accessoryWords = ['case', 'funda', 'cover', 'protector', 'mica', 'cable', 'cargador', 'charger', 'silicone', 'vidrio templado', 'correa', 'band'];
+  return accessoryWords.some(function(word) { return q.indexOf(word) !== -1; });
+}
+
+function isBlockedPlanResult(title) {
+  var t = ' ' + (title || '').toLowerCase() + ' ';
+  var planPatterns = [
+    /\bplan\b/,
+    /\bmonthly\b/,
+    /\bcuotas\b/,
+    /pago mensual/,
+    /\b\d+\s*meses\b/,
+    /\bat&t\b/,
+    /\bverizon\b/,
+    /\bt-mobile\b/,
+    /\btmobile\b/,
+    /\bsprint\b/,
+    /\bcricket\b/,
+    /\btracfone\b/
+  ];
+  return planPatterns.some(function(pattern) { return pattern.test(t); });
+}
+
+function normalizeApiOffer(raw, query) {
+  var offer = Object.assign({}, raw);
+  offer.title = offer.title || 'Producto';
+  offer.source = offer.source || 'Tienda';
+  offer.price = Number(offer.price) || 0;
+  offer.old_price = Number(offer.old_price) || 0;
+  offer.clean_link = getApiOfferLink(offer, query);
+  offer.currency = offer.currency || '';
+  return offer;
+}
+
+function renderLocalStoreLinks(query) {
+  var localIds = ['mercadolibre', 'falabella', 'ripley', 'oechsle', 'plazavea', 'hiraoka', 'coolbox'];
+  var links = localIds.map(function(storeId) {
+    var store = PR.getStore(storeId);
+    if (!store) return '';
+    var searchUrl = PR.getStoreSearchUrl(store.name, query);
+    return '<a href="' + searchUrl + '" target="_blank" rel="noopener noreferrer" ' +
+      'style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;' +
+      'background:' + store.color + '22;border:1px solid ' + store.color + '44;' +
+      'border-radius:var(--r-lg);font-size:var(--text-sm);font-weight:600;' +
+      'color:var(--text-primary);text-decoration:none;transition:all 0.2s;">' +
+      store.icon + ' ' + store.name +
+    '</a>';
+  }).join('');
+
+  return '<div class="local-stores-section" style="margin-top:var(--s5);padding:var(--s5);background:var(--bg-glass);border:1px solid var(--border-glass);border-radius:var(--r-xl);">' +
+    '<h3 style="font-size:var(--text-base);margin-bottom:var(--s3);display:flex;align-items:center;gap:var(--s2);">' +
+      '<span>PE</span> Buscar en tiendas peruanas' +
+    '</h3>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:var(--s2);">' + links + '</div>' +
+  '</div>';
+}
+
+function renderApiEmptyState(query, title, message) {
+  var section = document.getElementById('api-results-section');
+  var countEl = document.getElementById('results-count');
+  if (!section) return;
+
+  cachedApiResults = [];
+  if (countEl) countEl.textContent = '0 productos reales encontrados';
+  section.style.display = 'block';
+  section.innerHTML =
+    '<div class="api-results-header">' +
+      '<h2>' + escapeHtml(title || 'Sin resultados reales') + '</h2>' +
+      '<p class="text-muted">' + escapeHtml(message || 'Intenta con otros terminos de busqueda.') + '</p>' +
+    '</div>' +
+    renderLocalStoreLinks(query);
+}
+
 function fetchApiResults(query) {
   var section = document.getElementById('api-results-section');
   var demoSep = document.getElementById('demo-separator');
@@ -576,7 +707,7 @@ function fetchApiResults(query) {
       '<div class="skeleton-card"><div class="skeleton skeleton-image"></div><div style="padding:1rem;"><div class="skeleton skeleton-text lg"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text" style="width:60%"></div></div></div>' +
     '</div>';
 
-  fetch('/api/search?q=' + encodeURIComponent(query) + '&country=' + (PR.currency.country || 'us'))
+  fetch('/api/search?q=' + encodeURIComponent(query) + '&country=' + getPreferredSearchCountry())
     .then(function(r) {
       // Always try to parse JSON, even on error status codes
       return r.json().catch(function() {
@@ -588,16 +719,17 @@ function fetchApiResults(query) {
         
         // Filter out junk/accessories and mobile plans
         var filterWords = ['case', 'funda', 'cover', 'protector', 'mica', 'cable', 'cargador', 'charger', 'silicone', 'vidrio templado', 'correa', 'band'];
-        var planWords = ['plan', 'monthly', 'cuotas', 'pago mensual', 'meses', 'locked', 'at&t', 'verizon', 't-mobile', 'tmobile', 'sprint', 'cricket', 'tracfone'];
         var qNorm = query.toLowerCase();
         
         var colors = ['black', 'white', 'pink', 'blue', 'green', 'yellow', 'red', 'purple', 'titanium', 'natural', 'desert', 'midnight', 'starlight', 'silver', 'space gray', 'gold', 'negro', 'blanco', 'rosa', 'azul', 'verde', 'amarillo', 'rojo', 'morado', 'plateado', 'dorado', 'gris'];
 
-        data.results = data.results.filter(function(r) {
+        data.results = data.results.map(function(r) {
+           return normalizeApiOffer(r, query);
+        }).filter(function(r) {
            var t = (r.title || '').toLowerCase();
            var isAccessory = filterWords.some(function(w) { return t.indexOf(w) !== -1; });
-           var isPlan = planWords.some(function(w) { return t.indexOf(w) !== -1; });
-           var queryHasAccessory = filterWords.some(function(w) { return qNorm.indexOf(w) !== -1; });
+           var isPlan = isBlockedPlanResult(t);
+           var queryHasAccessory = isAccessoryQuery(qNorm);
            
            // Clean up the link
            var href = r.link || '';
@@ -610,23 +742,18 @@ function fetchApiResults(query) {
              }
            }
            
-           // Accept any link that starts with http (Google Shopping redirects are valid - they take you to the store)
+           // Accept direct store links and fall back to a store search URL.
            var hasLink = href.indexOf('http') === 0;
-           r.clean_link = hasLink ? href : '';
+           r.clean_link = hasLink ? href : PR.getStoreSearchUrl(r.source || 'Tienda', r.title || query);
+           r.currency = r.currency || '';
 
-           // Filter: must not be accessory/plan AND must have some link
-           return (queryHasAccessory || !isAccessory) && !isPlan && hasLink;
+           return (queryHasAccessory || !isAccessory) && !isPlan;
         });
 
         // If all results were filtered out, show a helpful message instead of empty
         if (data.results.length === 0) {
-          section.innerHTML =
-            '<div class="api-results-header">' +
-              '<h2>🌐 Resultados en <span class="text-gradient">Tiempo Real</span></h2>' +
-              '<p class="text-muted">No se encontraron productos con enlace directo de compra para "' + escapeHtml(query) + '"</p>' +
-              '<p class="text-muted" style="font-size:0.85rem;">Intenta con otros términos o sé más específico.</p>' +
-            '</div>';
-          if (demoSep) demoSep.style.display = 'flex';
+          renderApiEmptyState(query, 'Sin resultados reales', 'No encontramos productos reales para "' + query + '". Puedes buscar directamente en tiendas peruanas.');
+          if (demoSep) demoSep.style.display = 'none';
           return;
         }
 
@@ -724,14 +851,11 @@ function fetchApiResults(query) {
         cachedApiFallback = !!data.is_fallback;
         // Show API results and the demo separator
         renderApiResultCards(groupedResults, data.from_cache, data.is_fallback);
-        if (demoSep) demoSep.style.display = 'flex';
-      } else if (data.api_available === false) {
-        section.innerHTML =
-          '<div class="api-unavailable">' +
-            '<p>💡 <strong>API no configurada.</strong> Mostrando datos de demostración. ' +
-            'Configura tu clave <code>SERPAPI_KEY</code> para ver resultados en tiempo real.</p>' +
-          '</div>';
         if (demoSep) demoSep.style.display = 'none';
+      } else if (data.api_available === false) {
+        renderApiEmptyState(query, 'API no configurada', 'Configura SERPAPI_KEY para ver resultados reales. Mientras tanto, puedes buscar directamente en tiendas peruanas.');
+        if (demoSep) demoSep.style.display = 'none';
+        return;
       } else if (data.api_error) {
         // Show specific API error with helpful message
         var errorMsg = data.api_error;
@@ -743,30 +867,21 @@ function fetchApiResults(query) {
         } else if (errorMsg.indexOf('Your account') !== -1) {
           helpText = 'Revisa el estado de tu cuenta en serpapi.com';
         } else {
-          helpText = 'Mostrando datos de demostración disponibles.';
+          helpText = 'Puedes buscar directamente en tiendas peruanas.';
         }
-        section.innerHTML =
-          '<div class="api-unavailable">' +
-            '<p>⚠️ <strong>Error del API:</strong> ' + escapeHtml(errorMsg.substring(0, 120)) + '</p>' +
-            '<p class="text-muted" style="margin-top:0.5rem;">' + helpText + '</p>' +
-          '</div>';
+        renderApiEmptyState(query, 'No se pudo completar la busqueda real', 'Error del API: ' + errorMsg.substring(0, 120) + '. ' + helpText);
         if (demoSep) demoSep.style.display = 'none';
+        return;
       } else {
-        section.innerHTML =
-          '<div class="api-results-header">' +
-            '<h2>🌐 Resultados en Tiempo Real</h2>' +
-            '<p class="text-muted">No se encontraron resultados en Google Shopping para "' + escapeHtml(query) + '"</p>' +
-            '<p class="text-muted" style="font-size:0.85rem;">Intenta con otros términos: "corsair gaming chair", "silla gamer"</p>' +
-          '</div>';
+        renderApiEmptyState(query, 'Sin resultados reales', 'No se encontraron resultados en Google Shopping para "' + query + '". Puedes buscar directamente en tiendas peruanas.');
         if (demoSep) demoSep.style.display = 'none';
+        return;
       }
     })
     .catch(function(err) {
-      section.innerHTML =
-        '<div class="api-unavailable">' +
-          '<p>💡 No se pudo conectar al servidor. Verifica que esté corriendo con <code>python server.py</code></p>' +
-        '</div>';
+      renderApiEmptyState(query, 'No se pudo conectar', 'Verifica que el servidor este corriendo y busca directamente en tiendas peruanas.');
       if (demoSep) demoSep.style.display = 'none';
+      return;
     });
 }
 
@@ -787,6 +902,8 @@ function renderApiResultCards(results, fromCache, isFallback) {
       '</h2>' +
       '<p class="text-muted">' + subtitle + '</p>';
   }
+  var countEl = document.getElementById('results-count');
+  if (countEl) countEl.textContent = results.length + ' producto' + (results.length !== 1 ? 's' : '') + ' real' + (results.length !== 1 ? 'es' : '') + ' encontrado' + (results.length !== 1 ? 's' : '');
 
   // Remove previous local stores section if re-rendering (from filters)
   var oldLocal = section.querySelector('.local-stores-section');
@@ -811,8 +928,14 @@ function renderApiResultCards(results, fromCache, isFallback) {
       deliveryHtml = '<div class="api-card-delivery">🚚 ' + item.delivery + '</div>';
     }
 
-    // Link to our Product Page
-    var href = 'product.html?api_idx=' + item.api_id;
+    var compareHref = 'product.html?api_idx=' + item.api_id;
+    var offers = item.raw_offers && item.raw_offers.length ? item.raw_offers : [item];
+    var bestOffer = offers.reduce(function(best, offer) {
+      return (offer.price || 999999) < (best.price || 999999) ? offer : best;
+    }, offers[0]);
+    var buyHref = item.buy_link || bestOffer.clean_link || getApiOfferLink(bestOffer, item.title);
+    var storeCount = item.is_group ? item.stores.length : 1;
+    var sourceText = item.source || '';
 
     // We convert everything to local display now
     var priceDisplay = PR.formatLocalPrice ? PR.formatLocalPrice(item.price) : 'S/ ' + Math.round(item.price);
@@ -821,7 +944,7 @@ function renderApiResultCards(results, fromCache, isFallback) {
       oldPriceDisplay = PR.formatLocalPrice ? PR.formatLocalPrice(item.old_price) : 'S/ ' + Math.round(item.old_price);
     }
 
-    return '<a href="' + href + '" class="api-card animate-on-scroll delay-' + ((idx % 4) + 1) + '">' +
+    return '<div class="api-card animate-on-scroll delay-' + ((idx % 4) + 1) + '">' +
       '<div class="api-card-image">' +
         (item.thumbnail
           ? '<img src="' + item.thumbnail + '" alt="' + escapeHtml(item.title) + '" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
@@ -833,7 +956,7 @@ function renderApiResultCards(results, fromCache, isFallback) {
         '</div>' +
       '</div>' +
       '<div class="api-card-body">' +
-        '<div class="api-card-source" style="' + (item.source.indexOf('Aprox') !== -1 ? 'color:var(--warning);' : '') + '">' + escapeHtml(item.source) + '</div>' +
+        '<div class="api-card-source" style="' + (sourceText.indexOf('Aprox') !== -1 ? 'color:var(--warning);' : '') + '">' + escapeHtml(sourceText) + '</div>' +
         '<div class="api-card-title">' + escapeHtml(item.title) + '</div>' +
         '<div class="api-card-prices">' +
           '<span class="api-card-price"><span style="font-size:0.7em;font-weight:normal;color:var(--text-muted);">' + (item.is_group ? 'Desde ' : '') + '</span>' + priceDisplay + '</span>' +
@@ -843,9 +966,10 @@ function renderApiResultCards(results, fromCache, isFallback) {
         deliveryHtml +
       '</div>' +
       '<div class="api-card-footer">' +
-        '<span class="btn btn-sm btn-success" style="width:100%;">Comparar ' + (item.is_group ? item.stores.length : '1') + ' Tiendas →</span>' +
+        '<a href="' + compareHref + '" class="btn btn-sm btn-success" style="flex:1;">Comparar ' + storeCount + ' tienda' + (storeCount !== 1 ? 's' : '') + '</a>' +
+        '<a href="' + buyHref + '" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-secondary" style="flex:1;">Comprar mejor precio</a>' +
       '</div>' +
-    '</a>';
+    '</div>';
   }).join('');
 
   // Add "Buscar en tiendas peruanas" section after API results

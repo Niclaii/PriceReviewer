@@ -173,7 +173,7 @@
       border-radius: var(--r-xl);
       overflow: hidden;
       transition: all var(--t-base) var(--ease-out);
-      cursor: pointer;
+      cursor: default;
       text-decoration: none;
       display: flex;
       flex-direction: column;
@@ -261,6 +261,14 @@
     .api-card-footer {
       padding: var(--s3) var(--s4);
       border-top: 1px solid var(--border-glass);
+      display: flex;
+      gap: var(--s2);
+    }
+    .api-card-footer .btn {
+      justify-content: center;
+      min-width: 0;
+      text-align: center;
+      white-space: normal;
     }
     .skeleton-card {
       background: var(--bg-card);

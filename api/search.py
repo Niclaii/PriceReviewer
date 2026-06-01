@@ -37,6 +37,28 @@ def _cache_set(key, data):
     _cache[key] = {'data': data, 'ts': time.time()}
 
 
+def _extract_result_link(item):
+    return (
+        item.get('link')
+        or item.get('product_link')
+        or item.get('serpapi_product_api')
+        or ''
+    )
+
+
+def _extract_currency(item):
+    currency = item.get('currency') or ''
+    if currency:
+        return currency
+
+    raw_price = str(item.get('price', ''))
+    if 'S/' in raw_price:
+        return 'PEN'
+    if '$' in raw_price:
+        return 'USD'
+    return ''
+
+
 def _call_serpapi(params):
     """Call SerpAPI and return (shopping_results, error_msg)."""
     try:
@@ -73,6 +95,7 @@ class handler(BaseHTTPRequestHandler):
                 'error': 'Falta el parámetro de búsqueda',
                 'results': [],
                 'api_available': bool(SERPAPI_KEY),
+                'api_error': 'Falta el parámetro de búsqueda',
             })
             return
 
@@ -82,6 +105,7 @@ class handler(BaseHTTPRequestHandler):
                 'results': [],
                 'api_available': False,
                 'message': 'SERPAPI_KEY no configurada.',
+                'api_error': '',
             })
             return
 
@@ -134,7 +158,7 @@ class handler(BaseHTTPRequestHandler):
         for item in shopping_results:
             price = item.get('extracted_price')
             title = item.get('title', '')
-            if not price or not title:
+            if price is None or not title:
                 continue
 
             old_price_val = 0
@@ -146,15 +170,12 @@ class handler(BaseHTTPRequestHandler):
             elif isinstance(old_price_obj, (int, float)):
                 old_price_val = old_price_obj
 
-            # Use link directly - the frontend handles Google redirects
-            raw_link = item.get('link', '') or ''
-
             results.append({
                 'title': title,
                 'price': price,
                 'price_raw': item.get('price', ''),
                 'source': item.get('source', 'Tienda'),
-                'link': raw_link,
+                'link': _extract_result_link(item),
                 'thumbnail': item.get('thumbnail', ''),
                 'rating': item.get('rating') or 0,
                 'reviews': item.get('reviews') or 0,
@@ -163,7 +184,7 @@ class handler(BaseHTTPRequestHandler):
                 'old_price': old_price_val,
                 'old_price_raw': old_price_raw,
                 'extensions': item.get('extensions', []),
-                'currency': item.get('currency', ''),
+                'currency': _extract_currency(item),
             })
 
         payload = {
