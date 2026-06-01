@@ -586,8 +586,7 @@ function fetchApiResults(query) {
     .then(function(data) {
       if (data.results && data.results.length > 0) {
         
-        // Filter out junk/accessories if the user didn't explicitly search for them
-        // Filter out junk/accessories if the user didn't explicitly search for them
+        // Filter out junk/accessories and mobile plans
         var filterWords = ['case', 'funda', 'cover', 'protector', 'mica', 'cable', 'cargador', 'charger', 'silicone', 'vidrio templado', 'correa', 'band'];
         var planWords = ['plan', 'monthly', 'cuotas', 'pago mensual', 'meses', 'locked', 'at&t', 'verizon', 't-mobile', 'tmobile', 'sprint', 'cricket', 'tracfone'];
         var qNorm = query.toLowerCase();
@@ -600,8 +599,10 @@ function fetchApiResults(query) {
            var isPlan = planWords.some(function(w) { return t.indexOf(w) !== -1; });
            var queryHasAccessory = filterWords.some(function(w) { return qNorm.indexOf(w) !== -1; });
            
-           // Extract real URL from Google redirects if possible
+           // Resolve the best possible link for the product
            var href = r.link || '';
+           
+           // Try to extract real URL from Google redirects (/url?q=...)
            if (href.indexOf('/url?') !== -1 || href.indexOf('google.com/url?') !== -1) {
              var match = href.match(/[?&](q|url)=([^&]+)/);
              if (match && match[2]) {
@@ -609,11 +610,14 @@ function fetchApiResults(query) {
              }
            }
            
-           // If the link is still broken or points to a Google Search, filter it out completely
-           var isBrokenLink = !href || href === '#' || href.indexOf('http') !== 0 || href.indexOf('google.com/search') !== -1;
-           if (!isBrokenLink) {
-             r.clean_link = href;
+           // Only reject truly broken links (empty, placeholder, or literal Google web search)
+           var isBrokenLink = !href || href === '#' || href.indexOf('http') !== 0;
+           // Reject google.com/search but ALLOW google.com/shopping, google.com/aclk, etc.
+           if (!isBrokenLink && href.indexOf('google.com/search?') !== -1) {
+             isBrokenLink = true;
            }
+           
+           r.clean_link = isBrokenLink ? '' : href;
 
            return (queryHasAccessory || !isAccessory) && !isPlan && !isBrokenLink;
         });
