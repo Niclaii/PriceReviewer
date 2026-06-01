@@ -146,12 +146,15 @@ class handler(BaseHTTPRequestHandler):
             elif isinstance(old_price_obj, (int, float)):
                 old_price_val = old_price_obj
 
+            # Prefer product_link (direct store URL) over link (may be Google redirect)
+            direct_link = item.get('product_link') or item.get('link', '#')
+
             results.append({
                 'title': title,
                 'price': price,
                 'price_raw': item.get('price', ''),
                 'source': item.get('source', 'Tienda'),
-                'link': item.get('link', '#'),
+                'link': direct_link,
                 'thumbnail': item.get('thumbnail', ''),
                 'rating': item.get('rating') or 0,
                 'reviews': item.get('reviews') or 0,
@@ -160,6 +163,7 @@ class handler(BaseHTTPRequestHandler):
                 'old_price': old_price_val,
                 'old_price_raw': old_price_raw,
                 'extensions': item.get('extensions', []),
+                'currency': item.get('currency', ''),
             })
 
         payload = {

@@ -610,27 +610,35 @@ function fetchApiResults(query) {
              }
            }
            
-           // Save the cleaned link (may be empty if no valid link exists)
+           // Validate link: must start with http and NOT be a Google search page
            var hasValidLink = href && href !== '#' && href.indexOf('http') === 0 && href.indexOf('google.com/search?') === -1;
            r.clean_link = hasValidLink ? href : '';
 
-           // Only filter by content (accessories/plans), NEVER by URL
-           return (queryHasAccessory || !isAccessory) && !isPlan;
+           // Filter: must not be accessory/plan AND must have a valid purchase link
+           return (queryHasAccessory || !isAccessory) && !isPlan && hasValidLink;
         });
+
+        // If all results were filtered out, show a helpful message instead of empty
+        if (data.results.length === 0) {
+          section.innerHTML =
+            '<div class="api-results-header">' +
+              '<h2>🌐 Resultados en <span class="text-gradient">Tiempo Real</span></h2>' +
+              '<p class="text-muted">No se encontraron productos con enlace directo de compra para "' + escapeHtml(query) + '"</p>' +
+              '<p class="text-muted" style="font-size:0.85rem;">Intenta con otros términos o sé más específico.</p>' +
+            '</div>';
+          if (demoSep) demoSep.style.display = 'flex';
+          return;
+        }
 
         // Apply USD to PEN conversion to all items
         var exchangeRate = 3.80; // 1 USD = 3.80 PEN
         data.results.forEach(function(r) {
           var isUSStore = ['amazon', 'ebay', 'best buy', 'walmart', 'newegg', 'target', 'b&h'].some(function(s) { return (r.source||'').toLowerCase().indexOf(s) !== -1; });
-          if (r.currency === 'USD' || isUSStore || r.price < 500 && (r.title||'').toLowerCase().indexOf('iphone') !== -1) { // iPhone under 500 is likely USD
+          if (r.currency === 'USD' || isUSStore || r.price < 500 && (r.title||'').toLowerCase().indexOf('iphone') !== -1) {
             r.price = (r.price || 0) * exchangeRate;
             if (r.old_price) r.old_price = r.old_price * exchangeRate;
             r.converted_to_pen = true;
           }
-
-          // We already resolved r.clean_link during the filter phase.
-          // If it's still missing somehow, we fallback to empty string (it shouldn't happen due to the filter)
-          r.clean_link = r.clean_link || '';
         });
 
         // Group by product title, capacity, and color
@@ -684,6 +692,7 @@ function fetchApiResults(query) {
           if (oldPrice <= bestPrice) oldPrice = null;
           
           var stores = g.offers.map(function(o) { return o.source; }).filter(function(v, i, a) { return a.indexOf(v) === i; });
+          var hasConversion = g.offers.some(function(o) { return o.converted_to_pen; });
           
           return {
             api_id: g.api_id,
@@ -693,7 +702,7 @@ function fetchApiResults(query) {
             old_price: oldPrice,
             store_count: g.offers.length,
             stores: stores,
-            source: stores.length + (stores.length === 1 ? ' tienda' : ' tiendas') + (g.offers.some(function(o) { return o.converted_to_pen; }) ? ' (Aprox. USD a PEN)' : ''),
+            source: stores.length + (stores.length === 1 ? ' tienda' : ' tiendas') + (hasConversion ? ' · Aprox. 1 USD = 3.80 PEN' : ''),
             is_group: true,
             raw_offers: g.offers
           };
