@@ -146,15 +146,15 @@ class handler(BaseHTTPRequestHandler):
             elif isinstance(old_price_obj, (int, float)):
                 old_price_val = old_price_obj
 
-            # Prefer product_link (direct store URL) over link (may be Google redirect)
-            direct_link = item.get('product_link') or item.get('link', '#')
+            # Use link directly - the frontend handles Google redirects
+            raw_link = item.get('link', '') or ''
 
             results.append({
                 'title': title,
                 'price': price,
                 'price_raw': item.get('price', ''),
                 'source': item.get('source', 'Tienda'),
-                'link': direct_link,
+                'link': raw_link,
                 'thumbnail': item.get('thumbnail', ''),
                 'rating': item.get('rating') or 0,
                 'reviews': item.get('reviews') or 0,

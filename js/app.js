@@ -599,23 +599,23 @@ function fetchApiResults(query) {
            var isPlan = planWords.some(function(w) { return t.indexOf(w) !== -1; });
            var queryHasAccessory = filterWords.some(function(w) { return qNorm.indexOf(w) !== -1; });
            
-           // Resolve the best possible link for the product
+           // Clean up the link
            var href = r.link || '';
            
            // Try to extract real URL from Google redirects (/url?q=...)
-           if (href.indexOf('/url?') !== -1 || href.indexOf('google.com/url?') !== -1) {
+           if (href.indexOf('google.com/url?') !== -1) {
              var match = href.match(/[?&](q|url)=([^&]+)/);
              if (match && match[2]) {
                try { href = decodeURIComponent(match[2]); } catch(e) {}
              }
            }
            
-           // Validate link: must start with http and NOT be a Google search page
-           var hasValidLink = href && href !== '#' && href.indexOf('http') === 0 && href.indexOf('google.com/search?') === -1;
-           r.clean_link = hasValidLink ? href : '';
+           // Accept any link that starts with http (Google Shopping redirects are valid - they take you to the store)
+           var hasLink = href.indexOf('http') === 0;
+           r.clean_link = hasLink ? href : '';
 
-           // Filter: must not be accessory/plan AND must have a valid purchase link
-           return (queryHasAccessory || !isAccessory) && !isPlan && hasValidLink;
+           // Filter: must not be accessory/plan AND must have some link
+           return (queryHasAccessory || !isAccessory) && !isPlan && hasLink;
         });
 
         // If all results were filtered out, show a helpful message instead of empty
