@@ -610,16 +610,12 @@ function fetchApiResults(query) {
              }
            }
            
-           // Only reject truly broken links (empty, placeholder, or literal Google web search)
-           var isBrokenLink = !href || href === '#' || href.indexOf('http') !== 0;
-           // Reject google.com/search but ALLOW google.com/shopping, google.com/aclk, etc.
-           if (!isBrokenLink && href.indexOf('google.com/search?') !== -1) {
-             isBrokenLink = true;
-           }
-           
-           r.clean_link = isBrokenLink ? '' : href;
+           // Save the cleaned link (may be empty if no valid link exists)
+           var hasValidLink = href && href !== '#' && href.indexOf('http') === 0 && href.indexOf('google.com/search?') === -1;
+           r.clean_link = hasValidLink ? href : '';
 
-           return (queryHasAccessory || !isAccessory) && !isPlan && !isBrokenLink;
+           // Only filter by content (accessories/plans), NEVER by URL
+           return (queryHasAccessory || !isAccessory) && !isPlan;
         });
 
         // Apply USD to PEN conversion to all items
@@ -1013,14 +1009,17 @@ function renderProductDetail(product) {
   var bestEl = document.getElementById('best-price-box');
   if (bestEl && best) {
     var bestStore = PR.getStore(best.storeId) || { name: best.storeNameOriginal || 'Tienda', icon: '🛒', rating: best.ratingOriginal || 4.5 };
-    var bestLink = best.link ? best.link : PR.generateAffiliateLink(best.storeId, best);
+    var bestLink = best.link ? best.link : '';
+    var buyBtnHtml = (bestLink && bestLink.indexOf('http') === 0)
+      ? '<a href="' + bestLink + '" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-lg" style="width:100%;margin-top:var(--s4);">Comprar Ahora →</a>'
+      : '<div class="btn btn-secondary btn-lg" style="width:100%;margin-top:var(--s4);opacity:0.5;cursor:default;">Sin enlace directo</div>';
     bestEl.innerHTML =
       '<div class="best-price-label">💰 Mejor Precio</div>' +
       '<div class="best-price-value">' + PR.formatPrice(best.price) + '</div>' +
       (best.originalPrice > best.price ? '<div class="best-price-original">' + PR.formatPrice(best.originalPrice) + ' <span class="badge badge-discount">-' + discount + '%</span></div>' : '') +
       '<div class="best-price-store">' + bestStore.icon + ' ' + bestStore.name + ' · ' + PR.renderStars(bestStore.rating) + '</div>' +
       (best.shipping === 0 ? '<div class="best-price-shipping">🚚 Envío gratis</div>' : '<div class="best-price-shipping">🚚 Envío: ' + PR.formatPrice(best.shipping) + '</div>') +
-      '<a href="' + bestLink + '" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-lg" style="width:100%;margin-top:var(--s4);">Comprar Ahora →</a>';
+      buyBtnHtml;
   }
 
   var reliableEl = document.getElementById('reliable-box');
@@ -1081,9 +1080,9 @@ function renderComparisonTable(product) {
       '<div class="store-delivery">' + entry.deliveryDays + ' día' + (entry.deliveryDays !== 1 ? 's' : '') + '</div>' +
       '<div class="store-stock ' + (entry.inStock ? 'in-stock' : 'out-of-stock') + '">' + (entry.inStock ? '✓ Disponible' : '✗ Agotado') + '</div>' +
       '<div>' +
-        (entry.inStock ?
+        (entry.inStock && entryLink && entryLink.indexOf('http') === 0 ?
           '<a href="' + entryLink + '" target="_blank" rel="noopener noreferrer" class="btn btn-sm ' + (isBest ? 'btn-primary' : 'btn-secondary') + '">Comprar</a>'
-        : '<span class="text-muted text-xs">No disponible</span>') +
+        : (entry.inStock ? '<span class="text-muted text-xs">Sin enlace</span>' : '<span class="text-muted text-xs">No disponible</span>')) +
       '</div>' +
     '</div>';
   });
