@@ -4,8 +4,9 @@
 
 const PR = window.PR || {};
 
-/* ---------- STORES (Peru + Internacional) ---------- */
+/* ---------- STORES (Sudamérica + Internacional) ---------- */
 PR.stores = [
+  // Perú
   { id: 'mercadolibre', name: 'Mercado Libre',  icon: '🤝', rating: 4.5, color: '#FFE600', url: 'https://www.mercadolibre.com.pe',  searchUrl: 'https://listado.mercadolibre.com.pe/{query}',              affiliateParam: 'aff=pricereview',          affiliateEnabled: true },
   { id: 'falabella',    name: 'Falabella',      icon: '🏢', rating: 4.2, color: '#AAD500', url: 'https://www.falabella.com.pe',    searchUrl: 'https://www.falabella.com.pe/search?Ntt={query}',          affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
   { id: 'ripley',       name: 'Ripley',         icon: '🏬', rating: 4.0, color: '#8B1A8E', url: 'https://simple.ripley.com.pe',    searchUrl: 'https://simple.ripley.com.pe/search?q={query}',            affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
@@ -13,6 +14,23 @@ PR.stores = [
   { id: 'plazavea',     name: 'PlazaVea',       icon: '🛒', rating: 3.7, color: '#00A650', url: 'https://www.plazavea.com.pe',     searchUrl: 'https://www.plazavea.com.pe/search?_query={query}',        affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
   { id: 'hiraoka',      name: 'Hiraoka',        icon: '📺', rating: 3.9, color: '#D4001A', url: 'https://hiraoka.com.pe',           searchUrl: 'https://hiraoka.com.pe/catalogsearch/result/?q={query}',   affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
   { id: 'coolbox',      name: 'CoolBox',        icon: '🎮', rating: 3.8, color: '#00B4D8', url: 'https://www.coolbox.pe',           searchUrl: 'https://www.coolbox.pe/search?q={query}',                  affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  { id: 'promart',      name: 'Promart',        icon: '🔨', rating: 3.8, color: '#E8308C', url: 'https://www.promart.pe',           searchUrl: 'https://www.promart.pe/search?q={query}',                  affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  { id: 'sodimac',      name: 'Sodimac',        icon: '🏗️', rating: 3.9, color: '#FF6900', url: 'https://www.sodimac.com.pe',      searchUrl: 'https://www.sodimac.com.pe/search?q={query}',              affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  { id: 'linio',        name: 'Linio',          icon: '🛍️', rating: 3.6, color: '#FF6600', url: 'https://www.linio.com.pe',        searchUrl: 'https://www.linio.com.pe/search?scroll=&q={query}',        affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  { id: 'curacao',      name: 'La Curacao',     icon: '🏠', rating: 3.7, color: '#003DA5', url: 'https://www.lacuracao.pe',         searchUrl: 'https://www.lacuracao.pe/curacao/buscador?query={query}',   affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  { id: 'metro',        name: 'Metro',          icon: '🛒', rating: 3.6, color: '#003399', url: 'https://www.metro.pe',             searchUrl: 'https://www.metro.pe/search?_query={query}',               affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  { id: 'wong',         name: 'Wong',           icon: '🛒', rating: 3.7, color: '#D4001A', url: 'https://www.wong.pe',              searchUrl: 'https://www.wong.pe/search?_query={query}',                affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  { id: 'phantom',      name: 'Phantom',        icon: '🖥️', rating: 3.8, color: '#7B2D8E', url: 'https://www.phantom.com.pe',      searchUrl: 'https://www.phantom.com.pe/search?q={query}',              affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  // Colombia
+  { id: 'exito',        name: 'Éxito',          icon: '🏬', rating: 4.0, color: '#FFDD00', url: 'https://www.exito.com',            searchUrl: 'https://www.exito.com/s?q={query}',                        affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  { id: 'alkosto',      name: 'Alkosto',        icon: '🏪', rating: 3.9, color: '#E31837', url: 'https://www.alkosto.com',          searchUrl: 'https://www.alkosto.com/search?q={query}',                 affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  // México
+  { id: 'liverpool',    name: 'Liverpool',      icon: '🏬', rating: 4.1, color: '#E91E8C', url: 'https://www.liverpool.com.mx',     searchUrl: 'https://www.liverpool.com.mx/tienda?s={query}',            affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  { id: 'coppel',       name: 'Coppel',         icon: '🏪', rating: 3.8, color: '#0033A0', url: 'https://www.coppel.com',           searchUrl: 'https://www.coppel.com/search?q={query}',                  affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  // Chile
+  { id: 'lider',        name: 'Lider',          icon: '🛒', rating: 3.8, color: '#0033A0', url: 'https://www.lider.cl',             searchUrl: 'https://www.lider.cl/catalogo?search={query}',             affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  { id: 'paris',        name: 'Paris',          icon: '🏢', rating: 3.9, color: '#1A1A1A', url: 'https://www.paris.cl',             searchUrl: 'https://www.paris.cl/search?q={query}',                    affiliateParam: 'utm_source=pricereview',   affiliateEnabled: false },
+  // Internacional
   { id: 'amazon',       name: 'Amazon',         icon: '📦', rating: 4.8, color: '#FF9900', url: 'https://www.amazon.com',           searchUrl: 'https://www.amazon.com/s?k={query}',                       affiliateParam: 'tag=pricereview-20',       affiliateEnabled: true },
   { id: 'ebay',         name: 'eBay',           icon: '🏷️', rating: 4.0, color: '#E53238', url: 'https://www.ebay.com',             searchUrl: 'https://www.ebay.com/sch/i.html?_nkw={query}',             affiliateParam: 'mkrid=711-53200-19255-0',  affiliateEnabled: true },
   { id: 'aliexpress',   name: 'AliExpress',     icon: '🌐', rating: 3.5, color: '#FF4747', url: 'https://es.aliexpress.com',        searchUrl: 'https://es.aliexpress.com/wholesale?SearchText={query}',   affiliateParam: 'aff_id=pricereview',       affiliateEnabled: true },
@@ -470,6 +488,16 @@ PR._regionUrls = {
     pe: 'https://simple.ripley.com.pe/search?q={query}',
     cl: 'https://simple.ripley.cl/search?q={query}',
   },
+  'sodimac': {
+    pe: 'https://www.sodimac.com.pe/search?q={query}',
+    cl: 'https://www.sodimac.cl/search?q={query}',
+    co: 'https://www.sodimac.com.co/search?q={query}',
+  },
+  'linio': {
+    pe: 'https://www.linio.com.pe/search?scroll=&q={query}',
+    mx: 'https://www.linio.com.mx/search?scroll=&q={query}',
+    co: 'https://www.linio.com.co/search?scroll=&q={query}',
+  },
 };
 
 /** Detect user country and currency, then fetch exchange rate */
@@ -504,11 +532,13 @@ PR.initCurrency = function(callback) {
         if (data.rates && data.rates[PR.currency.code]) {
           PR.currency.rate = data.rates[PR.currency.code];
         }
+        PR._convertDemoPrices();
         if (callback) callback();
       })
       .catch(function() {
         var fb = { MXN:17.2, EUR:0.92, GBP:0.79, COP:4350, ARS:1050, CLP:950, PEN:3.75, BRL:5.2, CAD:1.36, JPY:155, VES:40 };
         PR.currency.rate = fb[PR.currency.code] || 1;
+        PR._convertDemoPrices();
         if (callback) callback();
       });
   } else {
@@ -806,19 +836,22 @@ PR.sortProducts = function(products, sortBy) {
   return sorted;
 };
 
-/* Convert demo products to local currency */
-PR.products.forEach(p => {
-  p.prices.forEach(pr => {
-    pr.price = Math.round(pr.price * PR.currency.rate);
-    pr.originalPrice = Math.round(pr.originalPrice * PR.currency.rate);
-    pr.shipping = Math.round((pr.shipping || 0) * PR.currency.rate);
-  });
-  if (p.priceHistory) {
-    p.priceHistory.forEach(ph => {
-      ph.price = Math.round(ph.price * PR.currency.rate);
+/* Convert demo products to local currency — called by initCurrency AFTER rate is fetched */
+PR._convertDemoPrices = function() {
+  if (PR.currency.rate === 1) return; // No conversion needed (already in USD or rate not available)
+  PR.products.forEach(function(p) {
+    p.prices.forEach(function(pr) {
+      pr.price = Math.round(pr.price * PR.currency.rate);
+      pr.originalPrice = Math.round(pr.originalPrice * PR.currency.rate);
+      pr.shipping = Math.round((pr.shipping || 0) * PR.currency.rate);
     });
-  }
-});
+    if (p.priceHistory) {
+      p.priceHistory.forEach(function(ph) {
+        ph.price = Math.round(ph.price * PR.currency.rate);
+      });
+    }
+  });
+};
 
 /* Export namespace */
 window.PR = PR;

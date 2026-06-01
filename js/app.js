@@ -591,7 +591,7 @@ function renderPagination(totalPages) {
    REAL-TIME API RESULTS (Google Shopping via SerpAPI)
    ========================================== */
 function getPreferredSearchCountry() {
-  return 'pe';
+  return PR.currency.country || 'pe';
 }
 
 function cleanApiLink(link) {
@@ -667,7 +667,7 @@ function renderLocalStoreLinks(query) {
 
   return '<div class="local-stores-section" style="margin-top:var(--s5);padding:var(--s5);background:var(--bg-glass);border:1px solid var(--border-glass);border-radius:var(--r-xl);">' +
     '<h3 style="font-size:var(--text-base);margin-bottom:var(--s3);display:flex;align-items:center;gap:var(--s2);">' +
-      '<span>PE</span> Buscar en tiendas peruanas' +
+      '🛍️ Buscar en tiendas locales' +
     '</h3>' +
     '<div style="display:flex;flex-wrap:wrap;gap:var(--s2);">' + links + '</div>' +
   '</div>';
@@ -752,13 +752,14 @@ function fetchApiResults(query) {
 
         // If all results were filtered out, show a helpful message instead of empty
         if (data.results.length === 0) {
-          renderApiEmptyState(query, 'Sin resultados reales', 'No encontramos productos reales para "' + query + '". Puedes buscar directamente en tiendas peruanas.');
+          renderApiEmptyState(query, 'Sin resultados reales', 'No encontramos productos reales para "' + query + '". Puedes buscar directamente en tiendas locales.');
           if (demoSep) demoSep.style.display = 'none';
           return;
         }
 
-        // Apply USD to PEN conversion to all items
-        var exchangeRate = 3.80; // 1 USD = 3.80 PEN
+        // Apply currency conversion using the detected rate
+        var exchangeRate = PR.currency.rate || 3.80;
+        var currencyCode = PR.currency.code || 'PEN';
         data.results.forEach(function(r) {
           var isUSStore = ['amazon', 'ebay', 'best buy', 'walmart', 'newegg', 'target', 'b&h'].some(function(s) { return (r.source||'').toLowerCase().indexOf(s) !== -1; });
           if (r.currency === 'USD' || isUSStore || r.price < 500 && (r.title||'').toLowerCase().indexOf('iphone') !== -1) {
@@ -836,7 +837,7 @@ function fetchApiResults(query) {
         });
 
         // Prioritize groups with local stores
-        var localStores = ['mercado libre', 'mercadolibre', 'falabella', 'ripley', 'oechsle', 'hiraoka', 'coolbox', 'plaza vea'];
+        var localStores = ['mercado libre', 'mercadolibre', 'falabella', 'ripley', 'oechsle', 'hiraoka', 'coolbox', 'plaza vea', 'plazavea', 'promart', 'sodimac', 'linio', 'curacao', 'la curacao', 'metro', 'wong', 'phantom', 'exito', 'éxito', 'alkosto', 'liverpool', 'coppel', 'lider', 'paris'];
         groupedResults.sort(function(a, b) {
           var aLocal = a.stores.some(function(s) { return localStores.some(function(l) { return s.toLowerCase().indexOf(l) !== -1; }); }) ? -1 : 1;
           var bLocal = b.stores.some(function(s) { return localStores.some(function(l) { return s.toLowerCase().indexOf(l) !== -1; }); }) ? -1 : 1;
@@ -1270,7 +1271,7 @@ function renderPriceChart(product) {
     ctx.fillStyle = '#64748b';
     ctx.font = '11px Inter, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('$' + Math.round(price), padding.left - 8, y + 4);
+    ctx.fillText((PR.currency.symbol || '$') + Math.round(price), padding.left - 8, y + 4);
   }
 
   // Data points
@@ -1337,7 +1338,7 @@ function renderPriceChart(product) {
   ctx.fillStyle = '#6366f1';
   ctx.font = 'bold 13px Inter, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('$' + last.price, last.x + 10, last.y + 4);
+  ctx.fillText((PR.currency.symbol || '$') + last.price, last.x + 10, last.y + 4);
 
   // Chart tooltip on hover
   canvas.addEventListener('mousemove', function (e) {
@@ -1402,7 +1403,7 @@ function initPriceAlert(product) {
       var successEl = document.getElementById('alert-success');
       if (successEl) {
         successEl.style.display = 'block';
-        successEl.textContent = '✓ ¡Alerta creada! Te notificaremos a ' + email + ' cuando el precio baje a $' + targetPrice;
+        successEl.textContent = '✓ ¡Alerta creada! Te notificaremos a ' + email + ' cuando el precio baje a ' + (PR.currency.symbol || '$') + targetPrice;
         form.reset();
         setTimeout(function () { successEl.style.display = 'none'; }, 5000);
       }
