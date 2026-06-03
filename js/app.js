@@ -46,6 +46,21 @@ function initNavbar() {
 
   // Search bars (navbar + hero)
   document.querySelectorAll('.search-bar').forEach(initSearchBar);
+
+  // Country Selector
+  document.querySelectorAll('.country-select').forEach(function(select) {
+    // Set initial value
+    var searchCountry = localStorage.getItem('PR_SEARCH_COUNTRY') || PR.currency.country || 'pe';
+    if (select.querySelector('option[value="' + searchCountry + '"]')) {
+      select.value = searchCountry;
+    }
+    
+    // Listen for changes
+    select.addEventListener('change', function(e) {
+      localStorage.setItem('PR_SEARCH_COUNTRY', e.target.value);
+      window.location.reload(); // Reload to apply new country setting across the app
+    });
+  });
 }
 
 /* ==========================================
@@ -591,7 +606,7 @@ function renderPagination(totalPages) {
    REAL-TIME API RESULTS (Google Shopping via SerpAPI)
    ========================================== */
 function getPreferredSearchCountry() {
-  return PR.currency.country || 'pe';
+  return PR.searchCountry || PR.currency.country || 'pe';
 }
 
 function cleanApiLink(link) {
@@ -651,10 +666,11 @@ function normalizeApiOffer(raw, query) {
 }
 
 function renderLocalStoreLinks(query) {
-  var localIds = ['mercadolibre', 'falabella', 'ripley', 'oechsle', 'plazavea', 'hiraoka', 'coolbox'];
-  var links = localIds.map(function(storeId) {
-    var store = PR.getStore(storeId);
-    if (!store) return '';
+  var targetCountry = getPreferredSearchCountry();
+  
+  var links = PR.stores.filter(function(store) {
+    return store.country === targetCountry || store.country === 'global';
+  }).map(function(store) {
     var searchUrl = PR.getStoreSearchUrl(store.name, query);
     return '<a href="' + searchUrl + '" target="_blank" rel="noopener noreferrer" ' +
       'style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;' +
@@ -830,14 +846,20 @@ function fetchApiResults(query) {
             old_price: oldPrice,
             store_count: g.offers.length,
             stores: stores,
-            source: stores.length + (stores.length === 1 ? ' tienda' : ' tiendas') + (hasConversion ? ' · Aprox. 1 USD = 3.80 PEN' : ''),
+            source: stores.length + (stores.length === 1 ? ' tienda' : ' tiendas') + (hasConversion ? ' · Aprox. 1 USD = ' + (PR.currency.rate || 3.80).toFixed(2) + ' ' + (PR.currency.code || 'PEN') : ''),
             is_group: true,
             raw_offers: g.offers
           };
         });
 
         // Prioritize groups with local stores
-        var localStores = ['mercado libre', 'mercadolibre', 'falabella', 'ripley', 'oechsle', 'hiraoka', 'coolbox', 'plaza vea', 'plazavea', 'promart', 'sodimac', 'linio', 'curacao', 'la curacao', 'metro', 'wong', 'phantom', 'exito', 'éxito', 'alkosto', 'liverpool', 'coppel', 'lider', 'paris'];
+        var targetCountry = getPreferredSearchCountry();
+        var localStores = PR.stores.filter(function(s) { return s.country === targetCountry || s.country === 'global'; }).map(function(s) { return s.name.toLowerCase(); });
+        // Also add some known variations
+        if (targetCountry === 'pe') localStores.push('plaza vea', 'la curacao', 'mercado libre');
+        else if (targetCountry === 'co') localStores.push('mercado libre');
+        else if (targetCountry === 'mx') localStores.push('mercado libre');
+        else if (targetCountry === 'cl') localStores.push('mercado libre');
         groupedResults.sort(function(a, b) {
           var aLocal = a.stores.some(function(s) { return localStores.some(function(l) { return s.toLowerCase().indexOf(l) !== -1; }); }) ? -1 : 1;
           var bLocal = b.stores.some(function(s) { return localStores.some(function(l) { return s.toLowerCase().indexOf(l) !== -1; }); }) ? -1 : 1;
