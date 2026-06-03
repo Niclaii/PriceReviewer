@@ -128,6 +128,14 @@ class handler(BaseHTTPRequestHandler):
         }
         if country == 'pe':
             params['location'] = 'Peru'
+        elif country == 'co':
+            params['location'] = 'Colombia'
+        elif country == 'mx':
+            params['location'] = 'Mexico'
+        elif country == 'cl':
+            params['location'] = 'Chile'
+        elif country == 'ar':
+            params['location'] = 'Argentina'
         if page > 1:
             params['start'] = str((page - 1) * 20)
 
@@ -135,7 +143,10 @@ class handler(BaseHTTPRequestHandler):
         shopping_results, api_error = _call_serpapi(params)
         is_fallback = False
 
-        if not shopping_results and not api_error and country != 'us':
+        # Only allow fallback to US if the caller explicitly requests it
+        allow_fallback = qs.get('allow_fallback', ['0'])[0] == '1'
+
+        if allow_fallback and not shopping_results and not api_error and country != 'us':
             params_broad = params.copy()
             params_broad['gl'] = 'us'
             params_broad.pop('location', None)
@@ -143,7 +154,7 @@ class handler(BaseHTTPRequestHandler):
             if shopping_results:
                 is_fallback = True
 
-        if not shopping_results and api_error and country != 'us':
+        if allow_fallback and not shopping_results and api_error and country != 'us':
             params_broad = params.copy()
             params_broad['gl'] = 'us'
             params_broad.pop('location', None)

@@ -768,7 +768,8 @@ function fetchApiResults(query) {
 
         // If all results were filtered out, show a helpful message instead of empty
         if (data.results.length === 0) {
-          renderApiEmptyState(query, 'Sin resultados reales', 'No encontramos productos reales para "' + query + '". Puedes buscar directamente en tiendas locales.');
+          var countryName = {pe:'peruanas',co:'colombianas',mx:'mexicanas',cl:'chilenas',global:'internacionales'}[getPreferredSearchCountry()] || 'locales';
+          renderApiEmptyState(query, 'Sin resultados reales', 'No encontramos productos reales para "' + query + '" en tiendas ' + countryName + '. Puedes buscar directamente:');
           if (demoSep) demoSep.style.display = 'none';
           return;
         }
@@ -876,7 +877,7 @@ function fetchApiResults(query) {
         renderApiResultCards(groupedResults, data.from_cache, data.is_fallback);
         if (demoSep) demoSep.style.display = 'none';
       } else if (data.api_available === false) {
-        renderApiEmptyState(query, 'API no configurada', 'Configura SERPAPI_KEY para ver resultados reales. Mientras tanto, puedes buscar directamente en tiendas peruanas.');
+        renderApiEmptyState(query, 'API no configurada', 'Configura SERPAPI_KEY para ver resultados reales. Mientras tanto, busca directamente en tiendas locales.');
         if (demoSep) demoSep.style.display = 'none';
         return;
       } else if (data.api_error) {
@@ -890,19 +891,20 @@ function fetchApiResults(query) {
         } else if (errorMsg.indexOf('Your account') !== -1) {
           helpText = 'Revisa el estado de tu cuenta en serpapi.com';
         } else {
-          helpText = 'Puedes buscar directamente en tiendas peruanas.';
+          helpText = 'Busca directamente en tiendas locales.';
         }
         renderApiEmptyState(query, 'No se pudo completar la busqueda real', 'Error del API: ' + errorMsg.substring(0, 120) + '. ' + helpText);
         if (demoSep) demoSep.style.display = 'none';
         return;
       } else {
-        renderApiEmptyState(query, 'Sin resultados reales', 'No se encontraron resultados en Google Shopping para "' + query + '". Puedes buscar directamente en tiendas peruanas.');
+        var countryName2 = {pe:'peruanas',co:'colombianas',mx:'mexicanas',cl:'chilenas',global:'internacionales'}[getPreferredSearchCountry()] || 'locales';
+        renderApiEmptyState(query, 'Sin resultados en Google Shopping', 'No se encontraron resultados en Google Shopping para "' + query + '" en tiendas ' + countryName2 + '. Busca directamente:');
         if (demoSep) demoSep.style.display = 'none';
         return;
       }
     })
     .catch(function(err) {
-      renderApiEmptyState(query, 'No se pudo conectar', 'Verifica que el servidor este corriendo y busca directamente en tiendas peruanas.');
+      renderApiEmptyState(query, 'No se pudo conectar', 'Verifica tu conexión e intenta de nuevo. Mientras tanto, busca directamente:');
       if (demoSep) demoSep.style.display = 'none';
       return;
     });
@@ -995,21 +997,24 @@ function renderApiResultCards(results, fromCache, isFallback) {
     '</div>';
   }).join('');
 
-  // Add "Buscar en tiendas peruanas" section after API results
-  var query = new URLSearchParams(window.location.search).get('q') || '';
-  if (query) {
+    // Dynamically show stores for the selected country
+    var query = new URLSearchParams(window.location.search).get('q') || '';
+    var targetCountry = getPreferredSearchCountry();
+    var countryNames = {pe:'peruanas',co:'colombianas',mx:'mexicanas',cl:'chilenas',global:'internacionales'};
+    var countryLabel = countryNames[targetCountry] || 'locales';
+    var countryFlags = {pe:'🇵🇪',co:'🇨🇴',mx:'🇲🇽',cl:'🇨🇱',global:'🌐'};
+    var flag = countryFlags[targetCountry] || '🌐';
+
     var localStoresHtml =
       '<div class="local-stores-section" style="margin-top:var(--s5);padding:var(--s5);background:var(--bg-glass);border:1px solid var(--border-glass);border-radius:var(--r-xl);">' +
         '<h3 style="font-size:var(--text-base);margin-bottom:var(--s3);display:flex;align-items:center;gap:var(--s2);">' +
-          '<span>🇵🇪</span> Buscar también en tiendas peruanas' +
+          '<span>' + flag + '</span> Buscar también en tiendas ' + countryLabel +
         '</h3>' +
         '<div style="display:flex;flex-wrap:wrap;gap:var(--s2);">';
 
-    // Only show local (Peruvian) stores, not international ones
-    var localIds = ['mercadolibre', 'falabella', 'ripley', 'oechsle', 'plazavea', 'hiraoka', 'coolbox'];
-    localIds.forEach(function(storeId) {
-      var store = PR.getStore(storeId);
-      if (!store) return;
+    PR.stores.filter(function(store) {
+      return store.country === targetCountry || store.country === 'global';
+    }).forEach(function(store) {
       var searchUrl = PR.getStoreSearchUrl(store.name, query);
       localStoresHtml +=
         '<a href="' + searchUrl + '" target="_blank" rel="noopener noreferrer" ' +
